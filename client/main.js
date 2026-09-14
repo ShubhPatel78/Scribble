@@ -3,20 +3,23 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Extract Room ID & Username from URL
+    // 1. Extract Room Code & Username from URL
     const urlParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash ? window.location.hash.substring(1) : null;
-    let initialRoom = urlParams.get('room') || hash || 'default';
+    let initialRoom = (urlParams.get('room') || hash || 'DEFAULT').trim().toUpperCase();
     let initialUsername = urlParams.get('username') || localStorage.getItem('canvas_username') || '';
 
-    // Elements
+    // DOM Elements
     const viewport = document.getElementById('viewport');
     const drawingCanvas = document.getElementById('drawing-canvas');
     const overlayCanvas = document.getElementById('overlay-canvas');
 
     const roomBadge = document.getElementById('current-room-badge');
+    const copyCodeBtn = document.getElementById('copy-code-btn');
     const copyRoomBtn = document.getElementById('copy-room-btn');
-    const switchRoomBtn = document.getElementById('switch-room-btn');
+    const newRoomBtn = document.getElementById('new-room-btn');
+    const joinRoomBtn = document.getElementById('join-room-btn');
+
     const connectionBadge = document.getElementById('connection-badge');
     const connectionText = document.getElementById('connection-text');
     const avatarStack = document.getElementById('users-avatar-stack');
@@ -41,11 +44,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportJsonBtn = document.getElementById('export-json-btn');
     const clearBoardBtn = document.getElementById('clear-board-btn');
 
-    const roomModal = document.getElementById('room-modal');
-    const roomForm = document.getElementById('room-form');
-    const roomInput = document.getElementById('room-input');
-    const usernameInput = document.getElementById('username-input');
-    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    // Modals & Toast
+    const newRoomModal = document.getElementById('new-room-modal');
+    const newRoomForm = document.getElementById('new-room-form');
+    const newRoomNameInput = document.getElementById('new-room-name-input');
+    const newRoomUserInput = document.getElementById('new-room-user-input');
+    const newRoomCancelBtn = document.getElementById('new-room-cancel-btn');
+
+    const joinRoomModal = document.getElementById('join-room-modal');
+    const joinRoomForm = document.getElementById('join-room-form');
+    const joinCodeInput = document.getElementById('join-code-input');
+    const joinUsernameInput = document.getElementById('join-username-input');
+    const joinCancelBtn = document.getElementById('join-cancel-btn');
+
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    let toastTimer = null;
+
+    function showToast(msg) {
+        toastMessage.textContent = msg;
+        toast.classList.remove('hidden');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 2400);
+    }
 
     // 2. Initialize Engine & Network Client
     const engine = new CanvasEngine(viewport, drawingCanvas, overlayCanvas);
@@ -54,21 +77,18 @@ document.addEventListener('DOMContentLoaded', () => {
         username: initialUsername
     });
 
-    // In-memory operation history for current room
     let operations = [];
     let currentUserId = null;
     let myUndoneCount = 0;
 
     roomBadge.textContent = initialRoom;
 
-    // Helper: update undo/redo buttons
     function updateUndoRedoState() {
         const hasMyActiveOps = operations.some(op => op.userId === currentUserId && !op.undone);
         undoBtn.disabled = !hasMyActiveOps;
         redoBtn.disabled = myUndoneCount === 0;
     }
 
-    // Helper: refresh canvas
     function refreshCanvas() {
         engine.redraw(operations);
         updateUndoRedoState();
@@ -109,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     client.onUserJoined = (user, users) => {
         updateUserPresence(users);
+        showToast(`${user.username || 'A collaborator'} joined`);
     };
 
     client.onUserLeft = (userId, users) => {
@@ -120,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     client.onOpCommit = (op) => {
         operations.push(op);
-        // Clear remote live stroke for this user
         if (op.userId) {
             engine.remoteLiveStrokes.delete(op.userId);
             engine.renderOverlay();
@@ -156,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         operations = [];
         myUndoneCount = 0;
         refreshCanvas();
+        showToast('Canvas cleared for all users');
     };
 
     client.onLiveStroke = (userId, stroke) => {
@@ -173,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         engine.renderOverlay();
     };
 
-    // User presence renderer
     function updateUserPresence(users = []) {
         avatarStack.innerHTML = '';
         usersCountBadge.textContent = `${users.length} online`;
@@ -196,10 +216,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 4. Setup Engine Interaction Callbacks
+    // 4. Engine Interaction Callbacks
     engine.onCommitOperation = (op) => {
         client.commitOperation(op);
-        myUndoneCount = 0; // drawing clears redo
+        myUndoneCount = 0;
     };
 
     engine.onLiveStroke = (strokeData) => {
@@ -230,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Color Pickers
     primaryColorPicker.addEventListener('input', (e) => {
         engine.currentColor = e.target.value;
         colorDots.forEach(d => d.classList.remove('active'));
@@ -246,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Stroke Size Buttons
     sizeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             sizeBtns.forEach(b => b.classList.remove('active'));
@@ -255,14 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Shape Fill Toggle
     toggleFillBtn.addEventListener('click', () => {
         engine.isFillEnabled = !engine.isFillEnabled;
         toggleFillBtn.classList.toggle('active', engine.isFillEnabled);
         fillStatusText.textContent = engine.isFillEnabled ? 'On' : 'Off';
     });
 
-    // Bottom Left Controls: Undo, Redo, Zoom
     undoBtn.addEventListener('click', () => client.sendUndo());
     redoBtn.addEventListener('click', () => client.sendRedo());
 
@@ -270,13 +286,13 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomOutBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 0.8));
     resetViewBtn.addEventListener('click', () => engine.resetView());
 
-    // Export & Clear
     exportPngBtn.addEventListener('click', () => {
         const dataUrl = engine.exportPNG();
         const a = document.createElement('a');
         a.href = dataUrl;
         a.download = `canvascollab-${client.roomId}-${Date.now()}.png`;
         a.click();
+        showToast('📸 Canvas exported as PNG');
     });
 
     exportJsonBtn.addEventListener('click', () => {
@@ -293,6 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.download = `canvascollab-${client.roomId}.json`;
         a.click();
         URL.revokeObjectURL(url);
+        showToast('💾 State exported as JSON');
     });
 
     clearBoardBtn.addEventListener('click', () => {
@@ -301,60 +318,124 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Room Sharing & Switching
+    // 6. Room Sharing: Code & Link
+    copyCodeBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(client.roomId).then(() => {
+            showToast(`📋 Room code "${client.roomId}" copied!`);
+        }).catch(() => {
+            prompt('Copy Room Code:', client.roomId);
+        });
+    });
+
     copyRoomBtn.addEventListener('click', () => {
         const roomUrl = `${window.location.origin}/?room=${encodeURIComponent(client.roomId)}`;
         navigator.clipboard.writeText(roomUrl).then(() => {
-            const originalText = copyRoomBtn.innerHTML;
-            copyRoomBtn.innerHTML = '✅ <span class="btn-text">Copied!</span>';
-            setTimeout(() => {
-                copyRoomBtn.innerHTML = originalText;
-            }, 2000);
+            showToast('🔗 Invite link copied to clipboard!');
         }).catch(() => {
             prompt('Copy link to room:', roomUrl);
         });
     });
 
-    switchRoomBtn.addEventListener('click', () => {
-        roomInput.value = client.roomId;
-        usernameInput.value = client.username;
-        roomModal.classList.remove('hidden');
+    // 7. Modals: Create New Room & Join Room
+    newRoomBtn.addEventListener('click', () => {
+        newRoomUserInput.value = client.username || localStorage.getItem('canvas_username') || '';
+        newRoomModal.classList.remove('hidden');
     });
 
-    modalCancelBtn.addEventListener('click', () => {
-        roomModal.classList.add('hidden');
+    newRoomCancelBtn.addEventListener('click', () => {
+        newRoomModal.classList.add('hidden');
     });
 
-    roomForm.addEventListener('submit', (e) => {
+    newRoomForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const targetRoom = roomInput.value.trim().toLowerCase();
-        const targetUser = usernameInput.value.trim();
+        const customName = newRoomNameInput.value.trim() || 'Untitled Canvas';
+        const chosenUser = newRoomUserInput.value.trim();
 
-        if (targetRoom) {
-            localStorage.setItem('canvas_username', targetUser);
-            client.joinRoom(targetRoom, targetUser);
-            roomBadge.textContent = targetRoom;
+        if (chosenUser) {
+            localStorage.setItem('canvas_username', chosenUser);
+        }
 
-            // Update browser URL query parameter cleanly without reloading
-            const newUrl = `${window.location.pathname}?room=${encodeURIComponent(targetRoom)}`;
-            window.history.pushState({ room: targetRoom }, '', newUrl);
+        try {
+            const res = await fetch('/api/rooms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: customName })
+            });
+            const data = await res.json();
 
-            roomModal.classList.add('hidden');
+            if (data.success && data.code) {
+                newRoomModal.classList.add('hidden');
+                client.joinRoom(data.code, chosenUser);
+                roomBadge.textContent = data.code;
+
+                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(data.code)}`;
+                window.history.pushState({ room: data.code }, '', newUrl);
+
+                showToast(`🎉 Room created! Code: ${data.code}`);
+            }
+        } catch (err) {
+            console.error('Failed creating room via API:', err);
+            // Fallback in case of offline
+            const fallbackCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            client.joinRoom(fallbackCode, chosenUser);
+            roomBadge.textContent = fallbackCode;
+            newRoomModal.classList.add('hidden');
+            showToast(`Room created: ${fallbackCode}`);
         }
     });
 
-    // 6. Global Keyboard Shortcuts
+    joinRoomBtn.addEventListener('click', () => {
+        joinCodeInput.value = '';
+        joinUsernameInput.value = client.username || localStorage.getItem('canvas_username') || '';
+        joinRoomModal.classList.remove('hidden');
+    });
+
+    joinCancelBtn.addEventListener('click', () => {
+        joinRoomModal.classList.add('hidden');
+    });
+
+    joinRoomForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        let rawInput = joinCodeInput.value.trim();
+        const chosenUser = joinUsernameInput.value.trim();
+
+        if (!rawInput) return;
+
+        // If user pasted a full URL, extract ?room= or /room/
+        let targetCode = rawInput;
+        try {
+            if (rawInput.includes('://') || rawInput.includes('?room=') || rawInput.includes('/room/')) {
+                const parsed = new URL(rawInput, window.location.origin);
+                targetCode = parsed.searchParams.get('room') || parsed.pathname.replace('/room/', '') || rawInput;
+            }
+        } catch (_) {}
+
+        targetCode = targetCode.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+
+        if (chosenUser) {
+            localStorage.setItem('canvas_username', chosenUser);
+        }
+
+        client.joinRoom(targetCode, chosenUser);
+        roomBadge.textContent = targetCode;
+
+        const newUrl = `${window.location.pathname}?room=${encodeURIComponent(targetCode)}`;
+        window.history.pushState({ room: targetCode }, '', newUrl);
+
+        joinRoomModal.classList.add('hidden');
+        showToast(`🚪 Switched to room ${targetCode}`);
+    });
+
+    // 8. Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT') return;
 
-        // Undo (Ctrl+Z or Cmd+Z)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
             e.preventDefault();
             client.sendUndo();
             return;
         }
 
-        // Redo (Ctrl+Y or Cmd+Shift+Z)
         if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
             ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
             e.preventDefault();
@@ -362,7 +443,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Tools
         switch (e.key.toLowerCase()) {
             case 'p':
             case 'b':

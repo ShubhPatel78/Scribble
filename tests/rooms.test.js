@@ -1,6 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const RoomManager = require('../server/rooms');
+const { RoomManager, generateRoomCode } = require('../server/rooms');
+
+test('generateRoomCode - produces 6-character uppercase codes', () => {
+    const code = generateRoomCode();
+    assert.equal(typeof code, 'string');
+    assert.equal(code.length, 6);
+    assert.match(code, /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$/);
+});
 
 test('RoomManager - manages multiple isolated rooms', () => {
     const rm = new RoomManager();

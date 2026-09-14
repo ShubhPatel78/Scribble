@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const RoomManager = require('./rooms');
+const { RoomManager, generateRoomCode } = require('./rooms');
+const { isSupabaseEnabled } = require('./supabase');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,25 +19,73 @@ const USER_COLORS = [
     '#EC4899', '#14B8A6'
 ];
 
-// Serve static assets from client
+app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client')));
 
-// Health and metrics endpoint
+// -------------------------------------------------------------
+// REST API
+// -------------------------------------------------------------
+
+// Health check and metrics
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
-        uptime: process.uptime(),
+        uptime: Math.round(process.uptime()),
         timestamp: Date.now(),
+        supabaseConnected: isSupabaseEnabled(),
         ...roomManager.getStats()
     });
 });
 
-// Route /room/:roomId directly to client app
-app.get(['/', '/room/:roomId'], (req, res) => {
+// Create a new room with a 6-character code
+app.post('/api/rooms', async (req, res) => {
+    try {
+        const roomName = req.body.name || 'Untitled Canvas';
+        const newRoom = await roomManager.createNewRoom(roomName);
+
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+        const host = req.get('host');
+        const shareUrl = `${protocol}://${host}/?room=${newRoom.code}`;
+
+        res.status(201).json({
+            success: true,
+            code: newRoom.code,
+            name: newRoom.name,
+            url: shareUrl
+        });
+    } catch (err) {
+        console.error('[API] Error creating room:', err);
+        res.status(500).json({ error: 'Failed to create room' });
+    }
+});
+
+// Check if a room exists by code
+app.get('/api/rooms/:code', async (req, res) => {
+    try {
+        const code = req.params.code.trim().toUpperCase();
+        const room = await roomManager.loadRoomWithPersistence(code);
+
+        res.json({
+            exists: true,
+            code: room.id,
+            name: room.name,
+            userCount: room.clients.size,
+            activeOperations: room.state.getActiveOperations().length
+        });
+    } catch (err) {
+        res.status(404).json({ error: 'Room not found' });
+    }
+});
+
+// Serve client application for room URLs
+app.get(['/', '/room/:code'], (req, res) => {
     res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
-// Ping-pong heartbeat to purge zombie connections
+// -------------------------------------------------------------
+// WebSocket Real-Time Synchronization
+// -------------------------------------------------------------
+
 const heartbeatInterval = setInterval(() => {
     wss.clients.forEach(ws => {
         if (ws.isAlive === false) {
@@ -50,33 +100,31 @@ wss.on('close', () => {
     clearInterval(heartbeatInterval);
 });
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', async (ws, req) => {
     ws.isAlive = true;
     ws.on('pong', () => {
         ws.isAlive = true;
     });
 
-    // Parse initial URL query if available
     const parsedUrl = new URL(req.url, 'http://localhost');
-    const initialRoomId = (parsedUrl.searchParams.get('room') || 'default').toString().trim().toLowerCase();
+    const initialRoomCode = (parsedUrl.searchParams.get('room') || 'DEFAULT').toString().trim().toUpperCase();
     const initialUsername = (parsedUrl.searchParams.get('username') || '').toString().trim();
 
     const userId = `user_${++globalUserCounter}_${Math.random().toString(36).substring(2, 7)}`;
     const userColor = USER_COLORS[globalUserCounter % USER_COLORS.length];
-    let currentRoomId = initialRoomId;
+    let currentRoomId = initialRoomCode;
     let username = initialUsername || `Guest ${globalUserCounter}`;
 
-    // Attach client metadata
     const clientInfo = {
         id: userId,
         username,
         color: userColor
     };
 
-    // Join default/specified room
-    const room = roomManager.addClient(currentRoomId, ws, clientInfo);
+    // Load state (from memory or Supabase) and add client
+    const room = await roomManager.loadRoomWithPersistence(currentRoomId);
+    roomManager.addClient(currentRoomId, ws, clientInfo);
 
-    // Send initial snapshot to joining client
     try {
         ws.send(JSON.stringify({
             type: 'init',
@@ -91,14 +139,13 @@ wss.on('connection', (ws, req) => {
         console.error('[Server] Failed sending init:', err);
     }
 
-    // Broadcast user joined to other clients in the room
     roomManager.broadcast(currentRoomId, {
         type: 'user:joined',
         user: { id: userId, username, color: userColor },
         users: roomManager.getUsers(currentRoomId)
     }, ws);
 
-    ws.on('message', (raw) => {
+    ws.on('message', async (raw) => {
         try {
             const data = JSON.parse(raw);
             if (!data || !data.type) return;
@@ -106,16 +153,14 @@ wss.on('connection', (ws, req) => {
             const activeRoom = roomManager.getOrCreateRoom(currentRoomId);
 
             switch (data.type) {
-                // Switch / Join new room
                 case 'join': {
-                    const newRoomId = (data.roomId || 'default').toString().trim().toLowerCase();
+                    const newRoomCode = (data.roomId || 'DEFAULT').toString().trim().toUpperCase();
                     if (data.username) {
                         username = String(data.username).trim().substring(0, 30);
                         clientInfo.username = username;
                     }
 
-                    if (newRoomId !== currentRoomId) {
-                        // Leave old room
+                    if (newRoomCode !== currentRoomId) {
                         roomManager.removeClient(currentRoomId, ws);
                         roomManager.broadcast(currentRoomId, {
                             type: 'user:left',
@@ -123,9 +168,9 @@ wss.on('connection', (ws, req) => {
                             users: roomManager.getUsers(currentRoomId)
                         });
 
-                        // Join new room
-                        currentRoomId = newRoomId;
-                        const newRoom = roomManager.addClient(currentRoomId, ws, clientInfo);
+                        currentRoomId = newRoomCode;
+                        const newRoom = await roomManager.loadRoomWithPersistence(currentRoomId);
+                        roomManager.addClient(currentRoomId, ws, clientInfo);
 
                         ws.send(JSON.stringify({
                             type: 'init',
@@ -146,7 +191,6 @@ wss.on('connection', (ws, req) => {
                     break;
                 }
 
-                // In-flight live drawing preview (stream of points while pointer is down)
                 case 'stroke:live': {
                     roomManager.broadcast(currentRoomId, {
                         type: 'stroke:live',
@@ -156,7 +200,6 @@ wss.on('connection', (ws, req) => {
                     break;
                 }
 
-                // Final commit of a stroke or shape
                 case 'op:commit': {
                     if (!data.operation) break;
 
@@ -171,10 +214,12 @@ wss.on('connection', (ws, req) => {
                         type: 'op:commit',
                         operation: committed
                     });
+
+                    // Debounced persistent write to Supabase
+                    roomManager.scheduleDBSave(currentRoomId);
                     break;
                 }
 
-                // Per-user non-destructive undo
                 case 'op:undo': {
                     const undoneOp = activeRoom.state.undo(userId);
                     if (undoneOp) {
@@ -183,11 +228,11 @@ wss.on('connection', (ws, req) => {
                             opId: undoneOp.id,
                             userId
                         });
+                        roomManager.scheduleDBSave(currentRoomId);
                     }
                     break;
                 }
 
-                // Per-user redo
                 case 'op:redo': {
                     const redoneOp = activeRoom.state.redo(userId);
                     if (redoneOp) {
@@ -196,21 +241,21 @@ wss.on('connection', (ws, req) => {
                             operation: redoneOp,
                             userId
                         });
+                        roomManager.scheduleDBSave(currentRoomId);
                     }
                     break;
                 }
 
-                // Clear room canvas
                 case 'op:clear': {
                     activeRoom.state.clear();
                     roomManager.broadcast(currentRoomId, {
                         type: 'op:clear',
                         userId
                     });
+                    roomManager.scheduleDBSave(currentRoomId);
                     break;
                 }
 
-                // Live cursor movement with normalized coordinates
                 case 'cursor': {
                     if (typeof data.x === 'number' && typeof data.y === 'number') {
                         const clientRecord = activeRoom.clients.get(ws);
@@ -229,12 +274,9 @@ wss.on('connection', (ws, req) => {
                     }
                     break;
                 }
-
-                default:
-                    console.warn(`[Server] Unhandled message type: ${data.type}`);
             }
         } catch (err) {
-            console.error('[Server] Message processing error:', err);
+            console.error('[Server] Message handling error:', err);
         }
     });
 
@@ -267,4 +309,3 @@ if (require.main === module) {
 }
 
 module.exports = { app, server, wss, roomManager, heartbeatInterval };
-

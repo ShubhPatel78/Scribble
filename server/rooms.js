@@ -1,41 +1,134 @@
 const DrawingState = require('./drawing-state');
+const { fetchRoomFromDB, saveRoomToDB, updateRoomSnapshotInDB } = require('./supabase');
+
+/**
+ * Generates a clean, human-friendly 6-character room code.
+ * Omits ambiguous characters like 0, O, 1, I for readability.
+ */
+function generateRoomCode() {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
 
 /**
  * RoomManager: Orchestrates multi-tenant isolated collaborative rooms.
- * Manages WebSocket connections, room-scoped state, and presence tracking.
+ * Manages WebSocket connections, room-scoped state, Supabase persistence,
+ * and presence tracking.
  */
 class RoomManager {
     constructor() {
-        this.rooms = new Map(); // roomId -> Room object
+        this.rooms = new Map(); // roomId/code -> Room object
     }
 
     /**
-     * Gets or creates a room by ID.
+     * Sanitizes and normalizes room identifiers.
+     */
+    normalizeCode(code) {
+        if (!code) return 'DEFAULT';
+        return String(code).trim().toUpperCase();
+    }
+
+    /**
+     * Creates a new room with a unique code.
+     * @param {string} customName
+     * @returns {Promise<Object>} Created room metadata
+     */
+    async createNewRoom(customName = 'Untitled Canvas') {
+        let code = generateRoomCode();
+        while (this.rooms.has(code)) {
+            code = generateRoomCode();
+        }
+
+        const room = this.getOrCreateRoom(code, customName);
+
+        // Persist initial record in Supabase
+        await saveRoomToDB(code, customName, room.state.getSnapshot());
+
+        return {
+            code: room.id,
+            name: room.name,
+            createdAt: room.createdAt
+        };
+    }
+
+    /**
+     * Gets or creates a room by ID/code.
      * @param {string} roomId
+     * @param {string} name
      * @returns {Object} Room instance
      */
-    getOrCreateRoom(roomId) {
-        const id = String(roomId || 'default').trim().toLowerCase() || 'default';
+    getOrCreateRoom(roomId, name = null) {
+        const id = this.normalizeCode(roomId);
 
         if (!this.rooms.has(id)) {
-            this.rooms.set(id, {
+            const room = {
                 id,
+                name: name || `Room ${id}`,
                 state: new DrawingState(),
                 clients: new Map(), // ws -> { id, username, color, cursor }
                 createdAt: Date.now(),
-                cleanupTimer: null
-            });
+                cleanupTimer: null,
+                saveDbTimer: null,
+                isLoadedFromDb: false
+            };
+
+            this.rooms.set(id, room);
         }
 
         const room = this.rooms.get(id);
 
-        // Cancel scheduled cleanup if client rejoins
+        // Cancel scheduled disposal if someone reconnected
         if (room.cleanupTimer) {
             clearTimeout(room.cleanupTimer);
             room.cleanupTimer = null;
         }
 
         return room;
+    }
+
+    /**
+     * Loads room from Supabase if not loaded yet.
+     * @param {string} roomId
+     * @returns {Promise<Object>}
+     */
+    async loadRoomWithPersistence(roomId) {
+        const room = this.getOrCreateRoom(roomId);
+
+        if (!room.isLoadedFromDb) {
+            room.isLoadedFromDb = true;
+            const dbData = await fetchRoomFromDB(room.id);
+            if (dbData && dbData.snapshot) {
+                room.state.restoreFromSnapshot(dbData.snapshot);
+                if (dbData.name) room.name = dbData.name;
+                console.log(`📥 Restored room ${room.id} snapshot from Supabase (${room.state.getActiveOperations().length} active operations).`);
+            }
+        }
+
+        return room;
+    }
+
+    /**
+     * Schedules a debounced snapshot write to Supabase (saves every 3s after drawing pauses).
+     * @param {string} roomId
+     */
+    scheduleDBSave(roomId) {
+        const room = this.rooms.get(this.normalizeCode(roomId));
+        if (!room) return;
+
+        if (room.saveDbTimer) {
+            clearTimeout(room.saveDbTimer);
+        }
+
+        room.saveDbTimer = setTimeout(async () => {
+            room.saveDbTimer = null;
+            await updateRoomSnapshotInDB(room.id, room.state.getSnapshot());
+        }, 3000);
+
+        if (room.saveDbTimer.unref) room.saveDbTimer.unref();
     }
 
     /**
@@ -58,25 +151,29 @@ class RoomManager {
 
     /**
      * Removes a client from a room.
-     * If room becomes empty, schedules cleanup after a grace period.
+     * If room becomes empty, saves snapshot to DB and schedules memory cleanup after 10m.
      * @param {string} roomId
      * @param {WebSocket} ws
      * @returns {Object|null} Deleted client metadata
      */
     removeClient(roomId, ws) {
-        const room = this.rooms.get(roomId);
+        const room = this.rooms.get(this.normalizeCode(roomId));
         if (!room) return null;
 
         const clientInfo = room.clients.get(ws);
         room.clients.delete(ws);
 
         if (room.clients.size === 0) {
-            // Schedule room disposal after 5 minutes of inactivity to conserve memory
+            // Immediately sync snapshot to Supabase before idling
+            updateRoomSnapshotInDB(room.id, room.state.getSnapshot());
+
+            // Schedule room disposal from memory after 10 minutes of inactivity
             room.cleanupTimer = setTimeout(() => {
                 if (room.clients.size === 0) {
-                    this.rooms.delete(roomId);
+                    this.rooms.delete(room.id);
+                    console.log(`🧹 Room ${room.id} disposed from memory cache.`);
                 }
-            }, 5 * 60 * 1000);
+            }, 10 * 60 * 1000);
             if (room.cleanupTimer.unref) room.cleanupTimer.unref();
         }
 
@@ -90,7 +187,7 @@ class RoomManager {
      * @param {WebSocket|null} excludeWs
      */
     broadcast(roomId, message, excludeWs = null) {
-        const room = this.rooms.get(roomId);
+        const room = this.rooms.get(this.normalizeCode(roomId));
         if (!room) return;
 
         const payload = JSON.stringify(message);
@@ -111,7 +208,7 @@ class RoomManager {
      * @returns {Array<Object>}
      */
     getUsers(roomId) {
-        const room = this.rooms.get(roomId);
+        const room = this.rooms.get(this.normalizeCode(roomId));
         if (!room) return [];
 
         return Array.from(room.clients.values()).map(c => ({
@@ -141,4 +238,7 @@ class RoomManager {
     }
 }
 
-module.exports = RoomManager;
+module.exports = {
+    RoomManager,
+    generateRoomCode
+};

@@ -6,7 +6,7 @@
     <title>CanvasCollab • Real-Time Collaborative Whiteboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,13 +19,23 @@
             </div>
 
             <div class="room-pill">
-                <span class="room-label">Room:</span>
-                <span id="current-room-badge" class="room-id">default</span>
-                <button id="copy-room-btn" class="icon-btn-subtle" title="Copy room invite link">
-                    📋 <span class="btn-text">Share</span>
+                <span class="room-label">Code:</span>
+                <span id="current-room-badge" class="room-code-tag">DEFAULT</span>
+                
+                <button id="copy-code-btn" class="icon-btn-subtle" title="Copy 6-character room code">
+                    🔢 <span class="btn-text">Code</span>
                 </button>
-                <button id="switch-room-btn" class="icon-btn-subtle" title="Switch or create room">
-                    🔄 <span class="btn-text">Switch</span>
+                <button id="copy-room-btn" class="icon-btn-subtle" title="Copy direct invite link">
+                    📋 <span class="btn-text">Link</span>
+                </button>
+
+                <div class="pill-divider"></div>
+
+                <button id="new-room-btn" class="icon-btn-highlight" title="Create a new room">
+                    ➕ <span class="btn-text">New Room</span>
+                </button>
+                <button id="join-room-btn" class="icon-btn-subtle" title="Join another room using code or link">
+                    🚪 <span class="btn-text">Join Code</span>
                 </button>
             </div>
         </div>
@@ -157,22 +167,45 @@
         <canvas id="overlay-canvas"></canvas>
     </main>
 
-    <!-- Switch Room Modal -->
-    <div id="room-modal" class="modal-backdrop hidden">
+    <!-- Modal: Create New Room -->
+    <div id="new-room-modal" class="modal-backdrop hidden">
         <div class="modal-card">
-            <h3>Enter Room</h3>
-            <p>Join an existing collaborative room or create a new one.</p>
-            <form id="room-form">
-                <label for="room-input">Room Name / ID:</label>
-                <input type="text" id="room-input" placeholder="e.g. design-sprint, sprint-planning" required autocomplete="off">
-                <label for="username-input">Your Display Name:</label>
-                <input type="text" id="username-input" placeholder="e.g. Alice" maxlength="25">
+            <h3>🎨 Create New Whiteboard</h3>
+            <p>A new room will be created with a unique 6-character code and shareable link.</p>
+            <form id="new-room-form">
+                <label for="new-room-name-input">Canvas Name (Optional):</label>
+                <input type="text" id="new-room-name-input" placeholder="e.g. Sprint Architecture, Brainstorming" maxlength="40">
+                <label for="new-room-user-input">Your Display Name:</label>
+                <input type="text" id="new-room-user-input" placeholder="e.g. Alice" maxlength="25">
                 <div class="modal-actions">
-                    <button type="button" id="modal-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button type="button" id="new-room-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Generate Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Join Room with Code or Link -->
+    <div id="join-room-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h3>🚪 Join Collaborative Room</h3>
+            <p>Enter a 6-character room code (e.g. <code>K9X2P4</code>) or paste a full room link.</p>
+            <form id="join-room-form">
+                <label for="join-code-input">Room Code or Invite Link:</label>
+                <input type="text" id="join-code-input" placeholder="e.g. K9X2P4 or https://.../?room=K9X2P4" required autocomplete="off">
+                <label for="join-username-input">Your Display Name:</label>
+                <input type="text" id="join-username-input" placeholder="e.g. Bob" maxlength="25">
+                <div class="modal-actions">
+                    <button type="button" id="join-cancel-btn" class="btn-secondary">Cancel</button>
                     <button type="submit" class="btn-primary">Join Room</button>
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+        <span id="toast-message">Copied to clipboard!</span>
     </div>
 
     <!-- Scripts -->
