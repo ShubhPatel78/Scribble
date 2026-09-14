@@ -72,7 +72,7 @@ flowchart TD
 
 ```bash
 # Clone the repository
-git clone https://github.com/GarvMittal04/collaborative-canvas.git
+git clone https://github.com/ShubhPatel78/collaborative-canvas.git
 cd collaborative-canvas
 
 # Install dependencies
