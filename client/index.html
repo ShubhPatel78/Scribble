@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CanvasCollab • Real-Time Collaborative Whiteboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="brand">
+                <span class="brand-icon">🎨</span>
+                <span class="brand-name">CanvasCollab</span>
+            </div>
+
+            <div class="room-pill">
+                <span class="room-label">Room:</span>
+                <span id="current-room-badge" class="room-id">default</span>
+                <button id="copy-room-btn" class="icon-btn-subtle" title="Copy room invite link">
+                    📋 <span class="btn-text">Share</span>
+                </button>
+                <button id="switch-room-btn" class="icon-btn-subtle" title="Switch or create room">
+                    🔄 <span class="btn-text">Switch</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <div id="connection-badge" class="connection-badge disconnected">
+                <span class="status-dot"></span>
+                <span id="connection-text">Connecting...</span>
+            </div>
+        </div>
+
+        <div class="nav-right">
+            <div class="user-presence">
+                <div id="users-avatar-stack" class="avatar-stack"></div>
+                <span id="users-count-badge" class="badge">1 online</span>
+            </div>
+            
+            <div class="self-profile">
+                <span id="self-avatar" class="user-circle"></span>
+                <span id="self-name" class="self-username">You</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Floating Canvas Toolbar -->
+    <nav class="floating-toolbar">
+        <div class="tool-group">
+            <button class="tool-btn active" data-tool="brush" title="Pen / Brush (P)">
+                ✏️
+            </button>
+            <button class="tool-btn" data-tool="line" title="Line (L)">
+                📏
+            </button>
+            <button class="tool-btn" data-tool="rectangle" title="Rectangle (R)">
+                ⬜
+            </button>
+            <button class="tool-btn" data-tool="circle" title="Circle (O)">
+                ⭕
+            </button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+                🧹
+            </button>
+            <button class="tool-btn" data-tool="pan" title="Pan Hand Tool (H or hold Space)">
+                ✋
+            </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Color & Width Popover Triggers -->
+        <div class="tool-group">
+            <div class="color-picker-wrapper">
+                <input type="color" id="primary-color-picker" value="#3B82F6" title="Choose color">
+            </div>
+            <div class="preset-colors">
+                <button class="color-dot active" style="background: #1e293b" data-color="#1e293b" title="Dark Slate"></button>
+                <button class="color-dot" style="background: #ef4444" data-color="#ef4444" title="Red"></button>
+                <button class="color-dot" style="background: #10b981" data-color="#10b981" title="Emerald"></button>
+                <button class="color-dot" style="background: #3b82f6" data-color="#3b82f6" title="Blue"></button>
+                <button class="color-dot" style="background: #f59e0b" data-color="#f59e0b" title="Amber"></button>
+                <button class="color-dot" style="background: #8b5cf6" data-color="#8b5cf6" title="Purple"></button>
+            </div>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Stroke Width -->
+        <div class="tool-group stroke-widths">
+            <button class="size-btn" data-size="2" title="Thin (2px)">
+                <span style="width: 4px; height: 4px;"></span>
+            </button>
+            <button class="size-btn active" data-size="4" title="Medium (4px)">
+                <span style="width: 8px; height: 8px;"></span>
+            </button>
+            <button class="size-btn" data-size="8" title="Thick (8px)">
+                <span style="width: 12px; height: 12px;"></span>
+            </button>
+            <button class="size-btn" data-size="16" title="Bold (16px)">
+                <span style="width: 16px; height: 16px;"></span>
+            </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Shape Fill Toggle -->
+        <div class="tool-group">
+            <button id="toggle-fill-btn" class="toggle-btn" title="Toggle Shape Fill">
+                🎨 Fill: <span id="fill-status">Off</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Floating Action Controls (Undo, Redo, Zoom, Clear, Export) -->
+    <div class="floating-controls bottom-left">
+        <button id="undo-btn" class="action-btn" title="Undo (Ctrl+Z)" disabled>
+            ↩️
+        </button>
+        <button id="redo-btn" class="action-btn" title="Redo (Ctrl+Y / Cmd+Shift+Z)" disabled>
+            ↪️
+        </button>
+        <div class="control-divider"></div>
+        <button id="zoom-out-btn" class="action-btn" title="Zoom Out (-)">
+            🔍−
+        </button>
+        <span id="zoom-level-text" class="zoom-text">100%</span>
+        <button id="zoom-in-btn" class="action-btn" title="Zoom In (+)">
+            🔍+
+        </button>
+        <button id="reset-view-btn" class="action-btn" title="Reset View to 100%">
+            🎯
+        </button>
+    </div>
+
+    <div class="floating-controls bottom-right">
+        <button id="export-png-btn" class="btn-secondary" title="Download Canvas as PNG">
+            📸 Export PNG
+        </button>
+        <button id="export-json-btn" class="btn-secondary" title="Export Board State (JSON)">
+            💾 Save JSON
+        </button>
+        <button id="clear-board-btn" class="btn-danger" title="Clear board for all users">
+            🗑️ Clear
+        </button>
+    </div>
+
+    <!-- Main Canvas Viewport -->
+    <main id="viewport" class="canvas-viewport">
+        <canvas id="drawing-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+    </main>
+
+    <!-- Switch Room Modal -->
+    <div id="room-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h3>Enter Room</h3>
+            <p>Join an existing collaborative room or create a new one.</p>
+            <form id="room-form">
+                <label for="room-input">Room Name / ID:</label>
+                <input type="text" id="room-input" placeholder="e.g. design-sprint, sprint-planning" required autocomplete="off">
+                <label for="username-input">Your Display Name:</label>
+                <input type="text" id="username-input" placeholder="e.g. Alice" maxlength="25">
+                <div class="modal-actions">
+                    <button type="button" id="modal-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Join Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="canvas.js"></script>
+    <script src="websocket.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
