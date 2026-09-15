@@ -13,7 +13,7 @@
 
 A high-performance, low-latency collaborative whiteboarding platform built with **Node.js**, **WebSockets**, **HTML5 Canvas 2D**, and **Supabase PostgreSQL**. Engineered with discrete stroke event sourcing, non-destructive per-user undo/redo, infinite pan & zoom with normalized coordinate projections, multi-tenant 6-character room codes, and automated test coverage.
 
-[Features](#-key-features) • [System Architecture](#-system-architecture) • [Room Sharing](#-instant-room-sharing) • [Supabase Setup](#-database-setup-supabase) • [Deploy to Render](#-production-deployment-render) • [Resume Bullet Points](#-resume-bullet-points-star-format)
+[Features](#-key-features) • [System Architecture](#-system-architecture) • [Room Sharing](#-instant-room-sharing) • [Supabase Setup](#-database-setup-supabase) • [Deploy to Render](#-production-deployment-render)
 
 </div>
 
@@ -245,23 +245,6 @@ npm test
 | `user:left` | Server ➔ Client | `{ userId, users }` | Notifies peers of disconnected collaborator |
 | `op:commit` | Server ➔ Client | `{ operation }` | Broadcasts newly committed shape/stroke |
 | `op:undo` | Server ➔ Client | `{ opId, userId }` | Broadcasts operation tombstone update |
-
----
-
-## 💼 Resume Bullet Points (STAR Format)
-
-You can feature this project on your resume with the following high-impact bullet points:
-
-- **Distributed Systems / Full-Stack**:
-  > *"Architected a low-latency collaborative whiteboarding platform supporting multi-tenant rooms with **Node.js**, **WebSockets**, and **HTML5 Canvas**, achieving **<30ms** visual synchronization across concurrent clients."*
-- **Event Sourcing & State Management**:
-  > *"Engineered an event-sourced drawing engine featuring discrete stroke batching, tombstone-based per-user undo/redo, and 2D camera affine projection, eliminating viewport scaling distortions on Retina and 4K displays."*
-- **Database Architecture & Persistence**:
-  > *"Integrated **Supabase PostgreSQL** with debounced JSONB snapshot syncing and Row Level Security (RLS), ensuring zero-data-loss whiteboard persistence across server restarts."*
-- **Performance & Network Optimization**:
-  > *"Reduced network traffic by **60%** via coordinate batching, quadratic Bézier curve interpolation, and 30 FPS cursor throttling, preventing socket congestion during rapid multi-user sketch sessions."*
-- **Quality Assurance & DevOps**:
-  > *"Constructed an 11-test automated suite using **Node.js Test Runner**, validating concurrent room routing, state snapshotting, and multi-client socket delivery; configured 1-click **Render Blueprint** infrastructure."*
 
 ---
 
