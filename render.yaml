@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server/server.js
     healthCheckPath: /api/health
     envVars:
       - key: PORT
