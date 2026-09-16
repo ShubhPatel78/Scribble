@@ -507,6 +507,21 @@ body {
     cursor: none;
 }
 
+.eraser-cursor {
+    position: fixed;
+    border-radius: 50%;
+    border: 2px solid rgba(220, 50, 100, 0.85);
+    background: rgba(255, 182, 193, 0.25);
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: width 0.05s ease, height 0.05s ease;
+}
+
+.eraser-cursor.hidden {
+    display: none;
+}
+
 #drawing-canvas, #overlay-canvas {
     position: absolute;
     top: 0;

@@ -34,7 +34,6 @@ class CanvasEngine {
         this.activeShapeStart = null; // { x, y } in world coordinates
         this.activeStrokePoints = []; // [{ x, y }] in world coordinates
         this.lastEraserPoint = null;  // last point painted — for incremental erase
-        this.cursorScreenPos = null; // { x, y } in screen px — for eraser ring
 
         // In-flight remote live strokes and cursors
         this.remoteLiveStrokes = new Map(); // userId -> { points, color, width, tool }
@@ -168,9 +167,6 @@ class CanvasEngine {
 
         // Pointer move
         this.viewport.addEventListener('pointermove', (e) => {
-            const rect = this.viewport.getBoundingClientRect();
-            this.cursorScreenPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-
             if (this.isPanning) {
                 this.panX = e.clientX - this.panStartX;
                 this.panY = e.clientY - this.panStartY;
@@ -185,11 +181,7 @@ class CanvasEngine {
                 this.onCursorMove(world.x, world.y);
             }
 
-            if (!this.isInteracting) {
-                // Still need to repaint overlay to move the eraser ring
-                this.renderOverlay();
-                return;
-            }
+            if (!this.isInteracting) return;
 
             if (this.currentTool === 'brush') {
                 this.activeStrokePoints.push(world);
@@ -208,18 +200,11 @@ class CanvasEngine {
                 // Paint ONLY the new segment — O(1), no full redraw
                 this._paintEraserSegment(this.lastEraserPoint || world, world);
                 this.lastEraserPoint = world;
-                this.renderOverlay(); // cursor ring
             } else {
                 // Shapes: activeShapeStart is origin, world is current end
                 this.activeStrokePoints = [this.activeShapeStart, world];
                 this.renderOverlay();
             }
-        });
-
-        // Clear eraser ring when mouse leaves the canvas
-        this.viewport.addEventListener('pointerleave', () => {
-            this.cursorScreenPos = null;
-            this.renderOverlay();
         });
 
         // Pointer up
@@ -510,41 +495,6 @@ class CanvasEngine {
                 this.overlayCtx.fillText(c.username, badgeX + 5, badgeY + 13);
             }
         });
-
-        // 4. Eraser cursor ring — shows size and position in screen space
-        if (this.currentTool === 'eraser' && this.cursorScreenPos) {
-            const { x, y } = this.cursorScreenPos;
-            // Eraser radius in world units is (width * 2) / 2 = width
-            // Convert to screen pixels by multiplying by zoom
-            const screenRadius = (this.currentWidth * 2 / 2) * this.zoom;
-
-            this.overlayCtx.save();
-            this.overlayCtx.scale(this.dpr, this.dpr);
-
-            const r = Math.max(1, screenRadius);
-
-            // Pink eraser fill — matches real eraser color
-            this.overlayCtx.beginPath();
-            this.overlayCtx.arc(x, y, r, 0, Math.PI * 2);
-            this.overlayCtx.fillStyle = 'rgba(255, 182, 193, 0.35)'; // light pink
-            this.overlayCtx.fill();
-
-            // Pink border ring
-            this.overlayCtx.beginPath();
-            this.overlayCtx.arc(x, y, r, 0, Math.PI * 2);
-            this.overlayCtx.strokeStyle = 'rgba(220, 50, 100, 0.85)'; // hot pink border
-            this.overlayCtx.lineWidth = 1.5;
-            this.overlayCtx.setLineDash([]);
-            this.overlayCtx.stroke();
-
-            // Center dot
-            this.overlayCtx.beginPath();
-            this.overlayCtx.arc(x, y, 2, 0, Math.PI * 2);
-            this.overlayCtx.fillStyle = 'rgba(220, 50, 100, 0.9)';
-            this.overlayCtx.fill();
-
-            this.overlayCtx.restore();
-        }
 
         this.overlayCtx.restore();
     }

@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const strokeSizeSlider = document.getElementById('stroke-size-slider');
     const sizeLabel = document.getElementById('size-label');
     const sizePreviewDot = document.getElementById('size-preview-dot');
+    const eraserCursor = document.getElementById('eraser-cursor');
     const toggleFillBtn = document.getElementById('toggle-fill-btn');
     const fillStatusText = document.getElementById('fill-status');
 
@@ -232,8 +233,16 @@ document.addEventListener('DOMContentLoaded', () => {
         client.sendCursor(worldX, worldY);
     };
 
+    function updateEraserCursorSize() {
+        if (!eraserCursor) return;
+        const screenDiameter = Math.max(6, (engine.currentWidth * 2) * engine.zoom);
+        eraserCursor.style.width = `${screenDiameter}px`;
+        eraserCursor.style.height = `${screenDiameter}px`;
+    }
+
     engine.onZoomChange = (zoom) => {
         zoomLevelText.textContent = `${Math.round(zoom * 100)}%`;
+        updateEraserCursorSize();
     };
 
     // 5. Tool Selection Handlers
@@ -253,12 +262,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show custom eraser ring cursor; hide system cursor
             if (tool === 'eraser') {
                 viewport.classList.add('eraser-active');
+                updateEraserCursorSize();
+                eraserCursor.classList.remove('hidden');
             } else {
                 viewport.classList.remove('eraser-active');
-                engine.cursorScreenPos = null;
-                engine.renderOverlay();
+                eraserCursor.classList.add('hidden');
             }
         });
+    });
+
+    viewport.addEventListener('pointermove', (e) => {
+        if (engine.currentTool === 'eraser') {
+            eraserCursor.style.left = `${e.clientX}px`;
+            eraserCursor.style.top = `${e.clientY}px`;
+            eraserCursor.classList.remove('hidden');
+        }
+    });
+
+    viewport.addEventListener('pointerleave', () => {
+        if (engine.currentTool === 'eraser') {
+            eraserCursor.classList.add('hidden');
+        }
     });
 
     primaryColorPicker.addEventListener('input', (e) => {
@@ -283,6 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dotSize = Math.min(4 + val * 0.5, 36);
         sizePreviewDot.style.width = `${dotSize}px`;
         sizePreviewDot.style.height = `${dotSize}px`;
+        updateEraserCursorSize();
     }
 
     strokeSizeSlider.addEventListener('input', () => {
