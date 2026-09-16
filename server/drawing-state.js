@@ -24,7 +24,7 @@ class DrawingState {
         const operation = {
             id: String(op.id),
             userId: String(op.userId || 'anonymous'),
-            type: op.type || 'stroke', // 'stroke' | 'rectangle' | 'circle' | 'line'
+            type: op.type || 'brush', // 'brush' | 'eraser' | 'rectangle' | 'circle' | 'line' | 'fill-bucket'
             color: op.color || '#000000',
             width: typeof op.width === 'number' ? op.width : 3,
             fill: Boolean(op.fill),
@@ -33,6 +33,8 @@ class DrawingState {
             y0: op.y0,
             x1: op.x1,
             y1: op.y1,
+            seedX: typeof op.seedX === 'number' ? op.seedX : undefined,
+            seedY: typeof op.seedY === 'number' ? op.seedY : undefined,
             timestamp: op.timestamp || Date.now(),
             undone: false
         };
