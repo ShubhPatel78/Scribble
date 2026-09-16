@@ -33,6 +33,7 @@ class CanvasEngine {
         this.panStartY = 0;
         this.activeShapeStart = null; // { x, y } in world coordinates
         this.activeStrokePoints = []; // [{ x, y }] in world coordinates
+        this.cursorScreenPos = null; // { x, y } in screen px — for eraser ring
 
         // In-flight remote live strokes and cursors
         this.remoteLiveStrokes = new Map(); // userId -> { points, color, width, tool }
@@ -162,6 +163,9 @@ class CanvasEngine {
 
         // Pointer move
         this.viewport.addEventListener('pointermove', (e) => {
+            const rect = this.viewport.getBoundingClientRect();
+            this.cursorScreenPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
             if (this.isPanning) {
                 this.panX = e.clientX - this.panStartX;
                 this.panY = e.clientY - this.panStartY;
@@ -176,7 +180,11 @@ class CanvasEngine {
                 this.onCursorMove(world.x, world.y);
             }
 
-            if (!this.isInteracting) return;
+            if (!this.isInteracting) {
+                // Still need to repaint overlay to move the eraser ring
+                this.renderOverlay();
+                return;
+            }
 
             if (this.currentTool === 'brush' || this.currentTool === 'eraser') {
                 this.activeStrokePoints.push(world);
@@ -195,6 +203,12 @@ class CanvasEngine {
                 this.activeStrokePoints = [this.activeShapeStart, world];
             }
 
+            this.renderOverlay();
+        });
+
+        // Clear eraser ring when mouse leaves the canvas
+        this.viewport.addEventListener('pointerleave', () => {
+            this.cursorScreenPos = null;
             this.renderOverlay();
         });
 
@@ -452,6 +466,40 @@ class CanvasEngine {
                 this.overlayCtx.fillText(c.username, badgeX + 5, badgeY + 13);
             }
         });
+
+        // 4. Eraser cursor ring — shows size and position in screen space
+        if (this.currentTool === 'eraser' && this.cursorScreenPos) {
+            const { x, y } = this.cursorScreenPos;
+            // Eraser radius in world units is (width * 2) / 2 = width
+            // Convert to screen pixels by multiplying by zoom
+            const screenRadius = (this.currentWidth * 2 / 2) * this.zoom;
+
+            this.overlayCtx.save();
+            this.overlayCtx.scale(this.dpr, this.dpr);
+
+            // Outer ring
+            this.overlayCtx.beginPath();
+            this.overlayCtx.arc(x, y, Math.max(1, screenRadius), 0, Math.PI * 2);
+            this.overlayCtx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+            this.overlayCtx.lineWidth = 1.5;
+            this.overlayCtx.setLineDash([4, 3]);
+            this.overlayCtx.stroke();
+
+            // Inner fill (very subtle white)
+            this.overlayCtx.beginPath();
+            this.overlayCtx.arc(x, y, Math.max(1, screenRadius), 0, Math.PI * 2);
+            this.overlayCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            this.overlayCtx.fill();
+
+            // Center crosshair dot
+            this.overlayCtx.beginPath();
+            this.overlayCtx.arc(x, y, 2, 0, Math.PI * 2);
+            this.overlayCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            this.overlayCtx.setLineDash([]);
+            this.overlayCtx.fill();
+
+            this.overlayCtx.restore();
+        }
 
         this.overlayCtx.restore();
     }

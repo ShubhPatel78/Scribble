@@ -249,6 +249,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 viewport.classList.remove('panning');
             }
+
+            // Show custom eraser ring cursor; hide system cursor
+            if (tool === 'eraser') {
+                viewport.classList.add('eraser-active');
+            } else {
+                viewport.classList.remove('eraser-active');
+                engine.cursorScreenPos = null;
+                engine.renderOverlay();
+            }
         });
     });
 

@@ -503,6 +503,10 @@ body {
     cursor: grabbing;
 }
 
+.canvas-viewport.eraser-active {
+    cursor: none;
+}
+
 #drawing-canvas, #overlay-canvas {
     position: absolute;
     top: 0;
