@@ -33,6 +33,7 @@ class CanvasEngine {
         this.panStartY = 0;
         this.activeShapeStart = null; // { x, y } in world coordinates
         this.activeStrokePoints = []; // [{ x, y }] in world coordinates
+        this.liveEraserPoints = [];   // points being erased right now — applied to main canvas each frame
         this.cursorScreenPos = null; // { x, y } in screen px — for eraser ring
 
         // In-flight remote live strokes and cursors
@@ -186,24 +187,29 @@ class CanvasEngine {
                 return;
             }
 
-            if (this.currentTool === 'brush' || this.currentTool === 'eraser') {
+            if (this.currentTool === 'brush') {
                 this.activeStrokePoints.push(world);
-
                 // Throttle live stroke updates to remote peers
                 if (this.onLiveStroke && this.activeStrokePoints.length % 3 === 0) {
                     this.onLiveStroke({
-                        tool: this.currentTool,
+                        tool: 'brush',
                         color: this.currentColor,
                         width: this.currentWidth,
                         points: this.activeStrokePoints
                     });
                 }
+                this.renderOverlay();
+            } else if (this.currentTool === 'eraser') {
+                this.activeStrokePoints.push(world);
+                this.liveEraserPoints = [...this.activeStrokePoints];
+                // Apply eraser directly to main canvas every frame — no round-trip delay
+                if (this.onNeedsRedraw) this.onNeedsRedraw();
+                this.renderOverlay(); // still needed for the cursor ring
             } else {
-                // For shapes, activeShapeStart is origin, world is current end
+                // Shapes: activeShapeStart is origin, world is current end
                 this.activeStrokePoints = [this.activeShapeStart, world];
+                this.renderOverlay();
             }
-
-            this.renderOverlay();
         });
 
         // Clear eraser ring when mouse leaves the canvas
@@ -256,6 +262,7 @@ class CanvasEngine {
 
             this.activeStrokePoints = [];
             this.activeShapeStart = null;
+            this.liveEraserPoints = []; // clear — committed op will handle it in next redraw
             this.renderOverlay();
 
             if (operation && this.onCommitOperation) {
@@ -389,6 +396,16 @@ class CanvasEngine {
             }
         });
 
+        // Apply in-progress eraser stroke directly on the drawing canvas
+        // This makes erasure instant — no server round-trip required
+        if (this.liveEraserPoints.length > 0) {
+            this.drawOperation(this.ctx, {
+                type: 'eraser',
+                width: this.currentWidth,
+                points: this.liveEraserPoints
+            });
+        }
+
         this.ctx.restore();
     }
 
@@ -402,17 +419,18 @@ class CanvasEngine {
 
         this.applyTransform(this.overlayCtx);
 
-        // 1. Render active local stroke/shape preview
+        // 1. Render active local stroke/shape preview (brush and shapes only)
+        // Eraser is handled directly on the drawing canvas via liveEraserPoints in redraw()
         if (this.isInteracting && this.activeStrokePoints.length > 0) {
             let previewOp = null;
-            if (this.currentTool === 'brush' || this.currentTool === 'eraser') {
+            if (this.currentTool === 'brush') {
                 previewOp = {
-                    type: this.currentTool,
+                    type: 'brush',
                     color: this.currentColor,
                     width: this.currentWidth,
                     points: this.activeStrokePoints
                 };
-            } else if (this.activeShapeStart && this.activeStrokePoints.length > 1) {
+            } else if (this.currentTool !== 'eraser' && this.activeShapeStart && this.activeStrokePoints.length > 1) {
                 const last = this.activeStrokePoints[this.activeStrokePoints.length - 1];
                 previewOp = {
                     type: this.currentTool,
@@ -426,7 +444,7 @@ class CanvasEngine {
                 };
             }
             if (previewOp) {
-                this.drawOperation(this.overlayCtx, previewOp, true); // isPreview = true
+                this.drawOperation(this.overlayCtx, previewOp, true);
             }
         }
 
