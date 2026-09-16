@@ -33,7 +33,7 @@ class CanvasEngine {
         this.panStartY = 0;
         this.activeShapeStart = null; // { x, y } in world coordinates
         this.activeStrokePoints = []; // [{ x, y }] in world coordinates
-        this.liveEraserPoints = [];   // points being erased right now — applied to main canvas each frame
+        this.lastEraserPoint = null;  // last point painted — for incremental erase
         this.cursorScreenPos = null; // { x, y } in screen px — for eraser ring
 
         // In-flight remote live strokes and cursors
@@ -149,10 +149,14 @@ class CanvasEngine {
             this.activeShapeStart = world;
             this.activeStrokePoints = [world];
 
-            if (this.currentTool === 'brush' || this.currentTool === 'eraser') {
+            if (this.currentTool === 'eraser') {
+                // Paint initial erase dot directly on drawing canvas
+                this.lastEraserPoint = world;
+                this._paintEraserSegment(world, world);
+            } else if (this.currentTool === 'brush') {
                 if (this.onLiveStroke) {
                     this.onLiveStroke({
-                        tool: this.currentTool,
+                        tool: 'brush',
                         color: this.currentColor,
                         width: this.currentWidth,
                         points: this.activeStrokePoints
@@ -201,10 +205,10 @@ class CanvasEngine {
                 this.renderOverlay();
             } else if (this.currentTool === 'eraser') {
                 this.activeStrokePoints.push(world);
-                this.liveEraserPoints = [...this.activeStrokePoints];
-                // Apply eraser directly to main canvas every frame — no round-trip delay
-                if (this.onNeedsRedraw) this.onNeedsRedraw();
-                this.renderOverlay(); // still needed for the cursor ring
+                // Paint ONLY the new segment — O(1), no full redraw
+                this._paintEraserSegment(this.lastEraserPoint || world, world);
+                this.lastEraserPoint = world;
+                this.renderOverlay(); // cursor ring
             } else {
                 // Shapes: activeShapeStart is origin, world is current end
                 this.activeStrokePoints = [this.activeShapeStart, world];
@@ -262,7 +266,7 @@ class CanvasEngine {
 
             this.activeStrokePoints = [];
             this.activeShapeStart = null;
-            this.liveEraserPoints = []; // clear — committed op will handle it in next redraw
+            this.lastEraserPoint = null;
             this.renderOverlay();
 
             if (operation && this.onCommitOperation) {
@@ -279,6 +283,34 @@ class CanvasEngine {
             const zoomDelta = e.deltaY < 0 ? 1.1 : 0.9;
             this.setZoom(this.zoom * zoomDelta, e.clientX, e.clientY);
         }, { passive: false });
+    }
+
+    /**
+     * Paints one eraser segment directly on the drawing canvas.
+     * O(1) per call — no full redraw needed.
+     */
+    _paintEraserSegment(from, to) {
+        this.applyTransform(this.ctx);
+        this.ctx.globalCompositeOperation = 'destination-out';
+        this.ctx.strokeStyle = 'rgba(0,0,0,1)';
+        this.ctx.fillStyle = 'rgba(0,0,0,1)';
+        this.ctx.lineWidth = (this.currentWidth || 4) * 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
+        if (from.x === to.x && from.y === to.y) {
+            // Single click — paint a dot
+            this.ctx.beginPath();
+            this.ctx.arc(from.x, from.y, this.ctx.lineWidth / 2, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else {
+            this.ctx.beginPath();
+            this.ctx.moveTo(from.x, from.y);
+            this.ctx.lineTo(to.x, to.y);
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore(); // restore from applyTransform
     }
 
     /**
@@ -396,16 +428,6 @@ class CanvasEngine {
             }
         });
 
-        // Apply in-progress eraser stroke directly on the drawing canvas
-        // This makes erasure instant — no server round-trip required
-        if (this.liveEraserPoints.length > 0) {
-            this.drawOperation(this.ctx, {
-                type: 'eraser',
-                width: this.currentWidth,
-                points: this.liveEraserPoints
-            });
-        }
-
         this.ctx.restore();
     }
 
@@ -420,7 +442,7 @@ class CanvasEngine {
         this.applyTransform(this.overlayCtx);
 
         // 1. Render active local stroke/shape preview (brush and shapes only)
-        // Eraser is handled directly on the drawing canvas via liveEraserPoints in redraw()
+        // Eraser is painted incrementally on the drawing canvas via _paintEraserSegment()
         if (this.isInteracting && this.activeStrokePoints.length > 0) {
             let previewOp = null;
             if (this.currentTool === 'brush') {
