@@ -287,7 +287,7 @@ class CanvasEngine {
     /**
      * Draws an operation (stroke, line, rectangle, circle).
      */
-    drawOperation(ctx, op) {
+    drawOperation(ctx, op, isPreview = false) {
         if (!op) return;
 
         ctx.save();
@@ -295,10 +295,19 @@ class CanvasEngine {
         ctx.lineJoin = 'round';
 
         if (op.type === 'eraser') {
-            // Use destination-out to truly erase pixels regardless of background color
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.strokeStyle = 'rgba(0,0,0,1)';
-            ctx.lineWidth = (op.width || 4) * 2;
+            if (isPreview) {
+                // For live preview on overlay: paint white so it visually simulates erasing.
+                // destination-out on a transparent overlay has no visible effect.
+                ctx.strokeStyle = '#fafbfc';
+                ctx.fillStyle = '#fafbfc';
+                ctx.lineWidth = (op.width || 4) * 2;
+            } else {
+                // Committed eraser: genuinely remove pixels from the drawing canvas
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
+                ctx.fillStyle = 'rgba(0,0,0,1)';
+                ctx.lineWidth = (op.width || 4) * 2;
+            }
         } else {
             ctx.strokeStyle = op.color || '#000000';
             ctx.lineWidth = op.width || 3;
@@ -317,7 +326,6 @@ class CanvasEngine {
                     ctx.fill();
                 } else {
                     ctx.moveTo(pts[0].x, pts[0].y);
-                    // Smooth Bézier curves using midpoints
                     for (let i = 1; i < pts.length - 1; i++) {
                         const midX = (pts[i].x + pts[i + 1].x) / 2;
                         const midY = (pts[i].y + pts[i + 1].y) / 2;
@@ -346,9 +354,7 @@ class CanvasEngine {
 
                 ctx.beginPath();
                 ctx.rect(x, y, w, h);
-                if (op.fill) {
-                    ctx.fill();
-                }
+                if (op.fill) ctx.fill();
                 ctx.stroke();
                 break;
             }
@@ -361,9 +367,7 @@ class CanvasEngine {
 
                 ctx.beginPath();
                 ctx.ellipse(cx, cy, Math.max(0.1, rx), Math.max(0.1, ry), 0, 0, Math.PI * 2);
-                if (op.fill) {
-                    ctx.fill();
-                }
+                if (op.fill) ctx.fill();
                 ctx.stroke();
                 break;
             }
@@ -422,13 +426,13 @@ class CanvasEngine {
                 };
             }
             if (previewOp) {
-                this.drawOperation(this.overlayCtx, previewOp);
+                this.drawOperation(this.overlayCtx, previewOp, true); // isPreview = true
             }
         }
 
-        // 2. Render remote live strokes
+        // 2. Render remote live strokes (also preview — don't erase remote overlay)
         this.remoteLiveStrokes.forEach((stroke) => {
-            this.drawOperation(this.overlayCtx, stroke);
+            this.drawOperation(this.overlayCtx, stroke, true);
         });
 
         this.overlayCtx.restore();
@@ -477,25 +481,26 @@ class CanvasEngine {
             this.overlayCtx.save();
             this.overlayCtx.scale(this.dpr, this.dpr);
 
-            // Outer ring
-            this.overlayCtx.beginPath();
-            this.overlayCtx.arc(x, y, Math.max(1, screenRadius), 0, Math.PI * 2);
-            this.overlayCtx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-            this.overlayCtx.lineWidth = 1.5;
-            this.overlayCtx.setLineDash([4, 3]);
-            this.overlayCtx.stroke();
+            const r = Math.max(1, screenRadius);
 
-            // Inner fill (very subtle white)
+            // Pink eraser fill — matches real eraser color
             this.overlayCtx.beginPath();
-            this.overlayCtx.arc(x, y, Math.max(1, screenRadius), 0, Math.PI * 2);
-            this.overlayCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            this.overlayCtx.arc(x, y, r, 0, Math.PI * 2);
+            this.overlayCtx.fillStyle = 'rgba(255, 182, 193, 0.35)'; // light pink
             this.overlayCtx.fill();
 
-            // Center crosshair dot
+            // Pink border ring
+            this.overlayCtx.beginPath();
+            this.overlayCtx.arc(x, y, r, 0, Math.PI * 2);
+            this.overlayCtx.strokeStyle = 'rgba(220, 50, 100, 0.85)'; // hot pink border
+            this.overlayCtx.lineWidth = 1.5;
+            this.overlayCtx.setLineDash([]);
+            this.overlayCtx.stroke();
+
+            // Center dot
             this.overlayCtx.beginPath();
             this.overlayCtx.arc(x, y, 2, 0, Math.PI * 2);
-            this.overlayCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            this.overlayCtx.setLineDash([]);
+            this.overlayCtx.fillStyle = 'rgba(220, 50, 100, 0.9)';
             this.overlayCtx.fill();
 
             this.overlayCtx.restore();
