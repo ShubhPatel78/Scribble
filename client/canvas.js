@@ -281,7 +281,9 @@ class CanvasEngine {
         ctx.lineJoin = 'round';
 
         if (op.type === 'eraser') {
-            ctx.strokeStyle = '#fafbfc'; // matches canvas background
+            // Use destination-out to truly erase pixels regardless of background color
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.strokeStyle = 'rgba(0,0,0,1)';
             ctx.lineWidth = (op.width || 4) * 2;
         } else {
             ctx.strokeStyle = op.color || '#000000';
@@ -328,12 +330,12 @@ class CanvasEngine {
                 const w = Math.abs(op.x1 - op.x0);
                 const h = Math.abs(op.y1 - op.y0);
 
+                ctx.beginPath();
+                ctx.rect(x, y, w, h);
                 if (op.fill) {
-                    ctx.globalAlpha = 0.25;
-                    ctx.fillRect(x, y, w, h);
-                    ctx.globalAlpha = 1.0;
+                    ctx.fill();
                 }
-                ctx.strokeRect(x, y, w, h);
+                ctx.stroke();
                 break;
             }
 
@@ -346,9 +348,7 @@ class CanvasEngine {
                 ctx.beginPath();
                 ctx.ellipse(cx, cy, Math.max(0.1, rx), Math.max(0.1, ry), 0, 0, Math.PI * 2);
                 if (op.fill) {
-                    ctx.globalAlpha = 0.25;
                     ctx.fill();
-                    ctx.globalAlpha = 1.0;
                 }
                 ctx.stroke();
                 break;

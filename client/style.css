@@ -297,30 +297,67 @@ body {
     transform: scale(1.15);
 }
 
-.stroke-widths .size-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    cursor: pointer;
+/* ── Size Slider ─────────────────────────────────────────────────── */
+.size-slider-group {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
+    padding: 0 4px;
 }
 
-.stroke-widths .size-btn span {
-    background: #64748b;
+.size-preview-dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    display: inline-block;
+    background: var(--text-primary);
+    flex-shrink: 0;
+    transition: width 0.1s ease, height 0.1s ease;
 }
 
-.stroke-widths .size-btn.active span {
+.stroke-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-color);
+    outline: none;
+    cursor: pointer;
+}
+
+.stroke-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
     background: var(--accent-color);
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px var(--accent-color);
+    transition: transform 0.1s ease;
 }
 
-.stroke-widths .size-btn:hover {
-    background: var(--bg-surface-hover);
+.stroke-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.25);
+}
+
+.stroke-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    border: 2px solid #fff;
+}
+
+.size-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 26px;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .toggle-btn {

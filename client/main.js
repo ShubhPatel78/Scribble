@@ -30,7 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const toolBtns = document.querySelectorAll('.tool-btn');
     const primaryColorPicker = document.getElementById('primary-color-picker');
     const colorDots = document.querySelectorAll('.color-dot');
-    const sizeBtns = document.querySelectorAll('.size-btn');
+    const strokeSizeSlider = document.getElementById('stroke-size-slider');
+    const sizeLabel = document.getElementById('size-label');
+    const sizePreviewDot = document.getElementById('size-preview-dot');
     const toggleFillBtn = document.getElementById('toggle-fill-btn');
     const fillStatusText = document.getElementById('fill-status');
 
@@ -265,13 +267,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    sizeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            sizeBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            engine.currentWidth = parseInt(btn.dataset.size, 10);
-        });
+    function updateSizeUI(val) {
+        engine.currentWidth = val;
+        sizeLabel.textContent = `${val}px`;
+        // Scale preview dot: clamp between 4px and 36px visually
+        const dotSize = Math.min(4 + val * 0.5, 36);
+        sizePreviewDot.style.width = `${dotSize}px`;
+        sizePreviewDot.style.height = `${dotSize}px`;
+    }
+
+    strokeSizeSlider.addEventListener('input', () => {
+        updateSizeUI(parseInt(strokeSizeSlider.value, 10));
     });
+
+    // Init dot on load
+    updateSizeUI(parseInt(strokeSizeSlider.value, 10));
 
     toggleFillBtn.addEventListener('click', () => {
         engine.isFillEnabled = !engine.isFillEnabled;

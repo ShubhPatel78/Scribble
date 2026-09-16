@@ -102,20 +102,12 @@
 
         <div class="toolbar-divider"></div>
 
-        <!-- Stroke Width -->
-        <div class="tool-group stroke-widths">
-            <button class="size-btn" data-size="2" title="Thin (2px)">
-                <span style="width: 4px; height: 4px;"></span>
-            </button>
-            <button class="size-btn active" data-size="4" title="Medium (4px)">
-                <span style="width: 8px; height: 8px;"></span>
-            </button>
-            <button class="size-btn" data-size="8" title="Thick (8px)">
-                <span style="width: 12px; height: 12px;"></span>
-            </button>
-            <button class="size-btn" data-size="16" title="Bold (16px)">
-                <span style="width: 16px; height: 16px;"></span>
-            </button>
+        <!-- Stroke Width Slider -->
+        <div class="tool-group size-slider-group">
+            <div class="size-preview-dot" id="size-preview-dot"></div>
+            <input type="range" id="stroke-size-slider" class="stroke-slider"
+                   min="1" max="80" value="4" title="Brush / Eraser Size">
+            <span class="size-label" id="size-label">4px</span>
         </div>
 
         <div class="toolbar-divider"></div>
