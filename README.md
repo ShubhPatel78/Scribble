@@ -2,103 +2,284 @@
 
 **Real-time collaborative whiteboard built with HTML5 Canvas, WebSockets, Node.js, and Supabase.**
 
-[Live Demo](https://collaborative-canvas-y2gi.onrender.com/) · [Source Code](https://github.com/ShubhPatel78/collaborative-canvas)
+[**Live Demo**](https://collaborative-canvas-y2gi.onrender.com/) · [**Source Code**](https://github.com/ShubhPatel78/collaborative-canvas) · [**Architecture**](./ARCHITECTURE.md)
 
-CanvasCollab enables multiple users to draw and collaborate on a shared canvas in real time. Users can create or join rooms, draw simultaneously, view collaborator presence, and persist their boards.
+CanvasCollab is a browser-based collaborative whiteboard that allows multiple users to draw and interact on the same canvas in real time. It uses a server-mediated WebSocket architecture with operation-based state, room isolation, live presence, and persistent canvas snapshots.
 
 ## Features
 
-* **Real-time collaboration** — Synchronizes drawing operations and cursor activity using WebSockets.
-* **Room-based sessions** — Create or join collaborative rooms using unique room codes.
-* **Drawing tools** — Freehand drawing, lines, rectangles, circles, and eraser.
-* **Undo/Redo** — Operation-based history for editing canvas changes.
-* **Infinite canvas** — Pan and zoom across the workspace.
-* **Collaborator presence** — Displays connected users and cursor positions.
-* **Persistent boards** — Stores canvas state using Supabase.
-* **Export** — Export boards as PNG or JSON.
-* **HiDPI rendering** — Supports high-resolution and Retina displays.
+### Drawing
+
+* Freehand brush with smooth Bézier-curve rendering
+* Lines
+* Rectangles
+* Circles / ellipses
+* Eraser
+* Filled and outlined shapes
+* Adjustable stroke properties
+* PNG export
+* JSON canvas export
+
+### Collaboration
+
+* Real-time multi-user drawing
+* Live collaborator cursors
+* Usernames and user-specific colors
+* Room-based collaboration
+* Shareable room codes and URLs
+* Automatic room creation for new visitors
+* Room-level state isolation
+
+### Canvas
+
+* Infinite workspace
+* Pan and zoom
+* Cursor-focused zooming
+* World-coordinate rendering
+* HiDPI / Retina support
+* Consistent rendering across different viewport sizes
+
+### State & Reliability
+
+* Operation-based drawing state
+* Per-user undo/redo
+* Non-destructive collaborative undo
+* Two-phase live-stroke and commit protocol
+* WebSocket heartbeat
+* Automatic inactive-room cleanup
+* Operation limits per room
+* Persistent canvas snapshots
+
+## Live Demo
+
+**https://collaborative-canvas-y2gi.onrender.com/**
+
+Opening the application automatically creates a new room when no room is specified. Users can then share the generated room code or URL to invite collaborators.
+
+## Architecture
+
+```text
+┌──────────────────────────────────────────────────────┐
+│                     Browser                          │
+│                                                      │
+│  UI / Drawing Tools    Canvas Engine    Camera       │
+│          │                   │             │         │
+│          └───────────────────┴─────────────┘         │
+│                           │                          │
+│                     WebSocket Client                │
+└───────────────────────────┼──────────────────────────┘
+                            │
+                     Full-Duplex WebSocket
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────┐
+│                    Node.js Server                    │
+│                                                      │
+│  Express                                              │
+│  WebSocket Server                                     │
+│  Connection Lifecycle                                 │
+│  Room Manager                                         │
+│  Drawing State                                        │
+│  Presence Management                                  │
+└───────────────────────────┬──────────────────────────┘
+                            │
+                    Persistent Snapshots
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────┐
+│                 Supabase PostgreSQL                  │
+│                                                      │
+│  Room Data                                            │
+│  Canvas Snapshots                                     │
+└──────────────────────────────────────────────────────┘
+```
+
+For the detailed system design, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+## Real-Time Synchronization
+
+CanvasCollab separates an active drawing stroke from its committed state.
+
+### Live Stroke
+
+While a user is drawing:
+
+```text
+Pointer Movement
+       │
+       ▼
+Local Stroke State
+       │
+       ├──────────────► Local Overlay
+       │
+       ▼
+  stroke:live
+       │
+       ▼
+Other Clients
+```
+
+Intermediate points are throttled and broadcast to other clients for live visualization.
+
+### Commit
+
+When the pointer is released:
+
+```text
+Pointer Up
+    │
+    ▼
+op:commit
+    │
+    ▼
+Server Validation
+    │
+    ▼
+DrawingState
+    │
+    ├──────────────► Room Broadcast
+    │
+    └──────────────► Persistence
+```
+
+This treats an entire drawing action as one logical operation instead of storing every pointer movement as a separate operation.
+
+## Collaborative Undo / Redo
+
+A global stack-based undo system does not work correctly in a multi-user environment because the latest operation may belong to another user.
+
+CanvasCollab uses **per-user undo state with tombstones**.
+
+```text
+Alice ──► Op 1
+Bob   ──► Op 2
+Alice ──► Op 3
+Bob   ──► Op 4
+
+Alice → Undo
+
+Alice ──► Op 1
+Bob   ──► Op 2
+Alice ──► Op 3  [undone]
+Bob   ──► Op 4
+```
+
+Undo marks the user's operation as inactive rather than removing it from the shared operation history. Redo restores the operation. A new operation after an undo clears that user's redo state.
+
+## Infinite Canvas
+
+CanvasCollab separates screen coordinates from world coordinates using a camera transformation.
+
+```text
+Screen Coordinates
+        │
+        ▼
+┌─────────────────┐
+│ Camera          │
+│                 │
+│ Pan + Zoom      │
+└────────┬────────┘
+         │
+         ▼
+World Coordinates
+```
+
+The camera supports:
+
+* Pan
+* Zoom
+* Cursor-focused zoom
+* Zoom limits
+* Device-pixel-ratio normalization
+* Consistent remote drawing coordinates
+
+The current implementation maintains `panX`, `panY`, and `zoom`, with zoom constrained between `0.2` and `4.0`.
+
+## Smooth Freehand Rendering
+
+Raw pointer samples can produce visibly jagged strokes.
+
+CanvasCollab uses **midpoint quadratic Bézier interpolation** to smooth freehand paths:
+
+```text
+P0 ─── P1 ─── P2 ─── P3
+       │
+       ▼
+  Midpoint Bézier
+       │
+       ▼
+ Smooth Stroke
+```
+
+This improves the visual quality of freehand drawing without requiring a heavyweight rendering library.
+
+## Room Management
+
+Each active room maintains its own drawing state and connected users.
+
+```text
+Room A
+├── Users
+├── Presence
+└── DrawingState
+
+Room B
+├── Users
+├── Presence
+└── DrawingState
+```
+
+The server includes:
+
+* Room-level message isolation
+* Operation limits
+* Inactive-room cleanup
+* WebSocket heartbeat checks
+* Connection lifecycle management
+
+Active rooms are garbage-collected after users disconnect and the configured inactivity period expires. A heartbeat mechanism detects stale WebSocket connections.
+
+## WebSocket Protocol
+
+| Event         | Purpose                                        |
+| ------------- | ---------------------------------------------- |
+| `join`        | Join a collaboration room                      |
+| `stroke:live` | Stream an active drawing stroke                |
+| `op:commit`   | Commit a drawing operation                     |
+| `op:undo`     | Undo the user's latest active operation        |
+| `op:redo`     | Redo a previously undone operation             |
+| `cursor`      | Synchronize cursor position                    |
+| `user:joined` | Notify clients of a new collaborator           |
+| `user:left`   | Notify clients when a collaborator disconnects |
 
 ## Tech Stack
 
 | Layer                   | Technology                      |
 | ----------------------- | ------------------------------- |
 | Frontend                | HTML5, CSS3, Vanilla JavaScript |
-| Rendering               | HTML5 Canvas API                |
+| Rendering               | HTML5 Canvas 2D API             |
 | Backend                 | Node.js, Express                |
-| Real-time Communication | WebSocket                       |
+| Real-time Communication | WebSockets (`ws`)               |
 | Database                | Supabase PostgreSQL             |
-| Testing                 | Node.js Test Runner             |
+| Testing                 | Node.js `node:test`             |
 | Deployment              | Render                          |
-
-## Architecture
-
-```text
-┌─────────────────────┐
-│      Browser        │
-│                     │
-│ HTML5 Canvas        │
-│ Vanilla JavaScript  │
-└──────────┬──────────┘
-           │
-           │ WebSocket
-           ▼
-┌─────────────────────┐
-│     Node.js         │
-│                     │
-│ Express             │
-│ WebSocket Server    │
-│ Room Management     │
-│ Canvas State        │
-└──────────┬──────────┘
-           │
-           │ Persistence
-           ▼
-┌─────────────────────┐
-│      Supabase       │
-│     PostgreSQL      │
-│                     │
-│ Room Data           │
-│ Canvas State        │
-└─────────────────────┘
-```
-
-### Data Flow
-
-1. A client creates or joins a room.
-2. The client establishes a WebSocket connection with the server.
-3. Drawing operations are sent to the server.
-4. The server broadcasts operations to other clients in the same room.
-5. Clients apply the operations to their local canvas.
-6. Canvas state is persisted to Supabase.
-
-## Real-Time Protocol
-
-CanvasCollab uses WebSockets for bidirectional communication between clients and the server.
-
-| Event         | Description                            |
-| ------------- | -------------------------------------- |
-| `join`        | Join a room                            |
-| `stroke:live` | Stream an active stroke                |
-| `op:commit`   | Commit a drawing operation             |
-| `op:undo`     | Undo an operation                      |
-| `op:redo`     | Redo an operation                      |
-| `cursor`      | Synchronize cursor position            |
-| `user:joined` | Notify clients of a new user           |
-| `user:left`   | Notify clients when a user disconnects |
 
 ## Project Structure
 
 ```text
 collaborative-canvas/
-├── client/              # Frontend application
-├── server/              # Node.js backend
-├── supabase/             # Database schema/configuration
-├── tests/                # Unit and integration tests
-├── Screenshot/           # Application screenshots
-├── ARCHITECTURE.md       # Architecture documentation
-├── .env.example          # Environment variable template
-├── render.yaml           # Render deployment configuration
+│
+├── client/                 # Frontend application
+├── server/                 # Node.js backend
+├── supabase/               # Database schema and persistence
+├── tests/                  # Unit and integration tests
+├── Screenshot/             # Application screenshots
+│
+├── ARCHITECTURE.md         # Technical architecture
+├── .env.example            # Environment configuration template
+├── render.yaml             # Render deployment configuration
 ├── package.json
+├── package-lock.json
 └── README.md
 ```
 
@@ -134,7 +315,7 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 npm start
 ```
 
-The application will be available at:
+Open:
 
 ```text
 http://localhost:3000
@@ -148,11 +329,12 @@ npm test
 
 ## Deployment
 
-CanvasCollab is deployed on Render.
+CanvasCollab is deployed on **Render**.
 
-**Production:** [collaborative-canvas-y2gi.onrender.com](https://collaborative-canvas-y2gi.onrender.com/)
+**Production:**
+https://collaborative-canvas-y2gi.onrender.com/
 
-The deployment uses the project's `render.yaml` configuration and environment variables for Supabase integration.
+The repository includes `render.yaml` for deployment configuration and Supabase environment variables for persistent storage.
 
 ## Future Improvements
 
@@ -161,12 +343,12 @@ The deployment uses the project's `render.yaml` configuration and environment va
 * Text and sticky-note tools
 * Image support
 * Board version history
-* Improved mobile and touch support
+* Mobile and touch optimization
 * Advanced conflict resolution
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License
 
 ## Author
 
