@@ -336,7 +336,8 @@ class CanvasEngine {
     }
 
     /**
-     * Fast Queue-based Flood Fill algorithm to fill enclosed regions.
+     * Fast Queue-based Flood Fill algorithm with Boundary Dilation
+     * to eliminate anti-aliasing gaps and fringes along stroke edges.
      */
     executeFloodFill(ctx, seedWorldX, seedWorldY, colorHex) {
         const screen = this.worldToScreen(seedWorldX, seedWorldY);
@@ -364,7 +365,7 @@ class CanvasEngine {
             return;
         }
 
-        const tolerance = 40;
+        const tolerance = 50;
         const visited = new Uint8Array(width * height);
 
         const match = (idx) => {
@@ -383,18 +384,12 @@ class CanvasEngine {
         queue[tail++] = startPos;
         visited[startPos] = 1;
 
+        // Step 1: Standard 4-way Flood Fill
         while (head < tail) {
             const pos = queue[head++];
             const cx = pos % width;
             const cy = (pos / width) | 0;
-            const idx = pos * 4;
 
-            data[idx] = fillColor.r;
-            data[idx + 1] = fillColor.g;
-            data[idx + 2] = fillColor.b;
-            data[idx + 3] = fillColor.a;
-
-            // 4-way expansion
             if (cx > 0) {
                 const nPos = pos - 1;
                 if (!visited[nPos] && match(nPos * 4)) {
@@ -421,6 +416,67 @@ class CanvasEngine {
                 if (!visited[nPos] && match(nPos * 4)) {
                     visited[nPos] = 1;
                     queue[tail++] = nPos;
+                }
+            }
+        }
+
+        // Step 2: Dilation / Anti-Aliasing Edge Expansion (expand by ~2-3px into stroke boundary)
+        // This completely eliminates the white gap/halo artifact along anti-aliased stroke edges.
+        const dilationRadius = Math.max(2, Math.round(this.dpr * 1.5));
+        const dilated = new Uint8Array(visited);
+        let currentBoundary = [];
+
+        for (let i = 0; i < tail; i++) {
+            const pos = queue[i];
+            const cx = pos % width;
+            const cy = (pos / width) | 0;
+
+            const isBorder = (cx > 0 && !visited[pos - 1]) ||
+                             (cx < width - 1 && !visited[pos + 1]) ||
+                             (cy > 0 && !visited[pos - width]) ||
+                             (cy < height - 1 && !visited[pos + width]);
+
+            if (isBorder) {
+                currentBoundary.push(pos);
+            }
+        }
+
+        for (let step = 0; step < dilationRadius; step++) {
+            const nextBoundary = [];
+            for (let i = 0; i < currentBoundary.length; i++) {
+                const pos = currentBoundary[i];
+                const cx = pos % width;
+                const cy = (pos / width) | 0;
+
+                const neighbors = [];
+                if (cx > 0) neighbors.push(pos - 1);
+                if (cx < width - 1) neighbors.push(pos + 1);
+                if (cy > 0) neighbors.push(pos - width);
+                if (cy < height - 1) neighbors.push(pos + width);
+
+                for (let j = 0; j < neighbors.length; j++) {
+                    const nPos = neighbors[j];
+                    if (!dilated[nPos]) {
+                        dilated[nPos] = 1;
+                        nextBoundary.push(nPos);
+                    }
+                }
+            }
+            currentBoundary = nextBoundary;
+        }
+
+        // Step 3: Write filled & dilated pixels into image data
+        for (let pos = 0; pos < width * height; pos++) {
+            if (dilated[pos]) {
+                const idx = pos * 4;
+                const existingA = data[idx + 3];
+
+                // Replace fully transparent and semi-transparent anti-aliased fringe pixels
+                if (visited[pos] || existingA < 245) {
+                    data[idx] = fillColor.r;
+                    data[idx + 1] = fillColor.g;
+                    data[idx + 2] = fillColor.b;
+                    data[idx + 3] = 255;
                 }
             }
         }
