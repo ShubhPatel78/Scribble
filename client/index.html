@@ -45,6 +45,32 @@
                 <span class="status-dot"></span>
                 <span id="connection-text">Connecting...</span>
             </div>
+
+            <div class="theme-dropdown-container">
+                <button id="theme-btn" class="theme-btn" title="Change Canvas Theme">
+                    <span id="theme-icon">☀️</span>
+                    <span id="theme-name" class="btn-text">Light</span>
+                    <span class="dropdown-chevron">▾</span>
+                </button>
+                <div id="theme-menu" class="theme-menu hidden">
+                    <button class="theme-option active" data-theme="light">
+                        <span class="theme-preview-dot light"></span>
+                        <span>☀️ Light Mode</span>
+                    </button>
+                    <button class="theme-option" data-theme="dark">
+                        <span class="theme-preview-dot dark"></span>
+                        <span>🌙 Dark Slate</span>
+                    </button>
+                    <button class="theme-option" data-theme="blueprint">
+                        <span class="theme-preview-dot blueprint"></span>
+                        <span>📐 Blueprint</span>
+                    </button>
+                    <button class="theme-option" data-theme="sepia">
+                        <span class="theme-preview-dot sepia"></span>
+                        <span>📜 Vintage Sepia</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="nav-right">
@@ -74,6 +100,9 @@
             </button>
             <button class="tool-btn" data-tool="circle" title="Circle (O)">
                 ⭕
+            </button>
+            <button class="tool-btn" data-tool="fill-bucket" title="Paint Bucket / Flood Fill (F)">
+                🪣
             </button>
             <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -94,6 +94,24 @@ test('DrawingState - snapshot and restore', () => {
     assert.equal(newState.getActiveOperations()[1].type, 'circle');
 });
 
+test('DrawingState - supports fill-bucket operations with per-user undo/redo', () => {
+    const state = new DrawingState();
+    state.addOperation({ id: 'stroke-1', userId: 'user_1', type: 'brush', points: [{x:0, y:0}] });
+    state.addOperation({ id: 'fill-1', userId: 'user_1', type: 'fill-bucket', color: '#10b981', seedX: 50, seedY: 50 });
+
+    assert.equal(state.getActiveOperations().length, 2);
+    assert.equal(state.getActiveOperations()[1].type, 'fill-bucket');
+    assert.equal(state.getActiveOperations()[1].color, '#10b981');
+
+    const undone = state.undo('user_1');
+    assert.equal(undone.id, 'fill-1');
+    assert.equal(state.getActiveOperations().length, 1);
+
+    const redone = state.redo('user_1');
+    assert.equal(redone.id, 'fill-1');
+    assert.equal(state.getActiveOperations().length, 2);
+});
+
 test('DrawingState - enforces maxOperations budget', () => {
     const state = new DrawingState({ maxOperations: 3 });
     state.addOperation({ id: 'op-1', userId: 'u1' });
@@ -105,3 +123,4 @@ test('DrawingState - enforces maxOperations budget', () => {
     assert.equal(state.operations[0].id, 'op-2');
     assert.equal(state.operations[2].id, 'op-4');
 });
+

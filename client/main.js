@@ -64,6 +64,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleFillBtn = document.getElementById('toggle-fill-btn');
     const fillStatusText = document.getElementById('fill-status');
 
+    // Theme Switcher Elements
+    const themeBtn = document.getElementById('theme-btn');
+    const themeMenu = document.getElementById('theme-menu');
+    const themeOptions = document.querySelectorAll('.theme-option');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeName = document.getElementById('theme-name');
+
     const undoBtn = document.getElementById('undo-btn');
     const redoBtn = document.getElementById('redo-btn');
     const zoomInBtn = document.getElementById('zoom-in-btn');
@@ -350,6 +357,56 @@ document.addEventListener('DOMContentLoaded', () => {
         fillStatusText.textContent = engine.isFillEnabled ? 'On' : 'Off';
     });
 
+    // Theme Switcher Management
+    const THEME_DATA = {
+        light: { name: 'Light', icon: '☀️' },
+        dark: { name: 'Dark Slate', icon: '🌙' },
+        blueprint: { name: 'Blueprint', icon: '📐' },
+        sepia: { name: 'Vintage Sepia', icon: '📜' }
+    };
+
+    function applyTheme(themeNameKey, notify = false) {
+        const theme = THEME_DATA[themeNameKey] ? themeNameKey : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('canvas_theme', theme);
+
+        if (themeIcon) themeIcon.textContent = THEME_DATA[theme].icon;
+        if (themeName) themeName.textContent = THEME_DATA[theme].name;
+
+        themeOptions.forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.theme === theme);
+        });
+
+        if (notify) {
+            showToast(`🎨 Theme: ${THEME_DATA[theme].icon} ${THEME_DATA[theme].name}`);
+        }
+    }
+
+    // Initialize saved theme
+    const savedTheme = localStorage.getItem('canvas_theme') || 'light';
+    applyTheme(savedTheme, false);
+
+    if (themeBtn && themeMenu) {
+        themeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            themeMenu.classList.toggle('hidden');
+        });
+
+        themeOptions.forEach(opt => {
+            opt.addEventListener('click', () => {
+                const chosenTheme = opt.dataset.theme;
+                applyTheme(chosenTheme, true);
+                themeMenu.classList.add('hidden');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!themeBtn.contains(e.target) && !themeMenu.contains(e.target)) {
+                themeMenu.classList.add('hidden');
+            }
+        });
+    }
+
     undoBtn.addEventListener('click', () => client.sendUndo());
     redoBtn.addEventListener('click', () => client.sendRedo());
 
@@ -521,6 +578,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'e':
                 document.querySelector('.tool-btn[data-tool="eraser"]')?.click();
+                break;
+            case 'f':
+            case 'g':
+                document.querySelector('.tool-btn[data-tool="fill-bucket"]')?.click();
                 break;
             case 'r':
                 document.querySelector('.tool-btn[data-tool="rectangle"]')?.click();

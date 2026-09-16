@@ -148,6 +148,22 @@ class CanvasEngine {
             this.activeShapeStart = world;
             this.activeStrokePoints = [world];
 
+            if (this.currentTool === 'fill-bucket') {
+                const opId = `op_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+                const op = {
+                    id: opId,
+                    type: 'fill-bucket',
+                    color: this.currentColor,
+                    seedX: world.x,
+                    seedY: world.y
+                };
+                this.executeFloodFill(this.ctx, world.x, world.y, this.currentColor);
+                if (this.onCommitOperation) {
+                    this.onCommitOperation(op);
+                }
+                return;
+            }
+
             if (this.currentTool === 'eraser') {
                 // Paint initial erase dot directly on drawing canvas
                 this.lastEraserPoint = world;
@@ -299,6 +315,120 @@ class CanvasEngine {
     }
 
     /**
+     * Parses a hex or rgb string into RGBA object.
+     */
+    parseColor(color) {
+        if (!color) return { r: 59, g: 130, b: 246, a: 255 };
+        if (color.startsWith('#')) {
+            let hex = color.slice(1);
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            if (hex.length === 6) {
+                const num = parseInt(hex, 16);
+                return {
+                    r: (num >> 16) & 255,
+                    g: (num >> 8) & 255,
+                    b: num & 255,
+                    a: 255
+                };
+            }
+        }
+        return { r: 59, g: 130, b: 246, a: 255 };
+    }
+
+    /**
+     * Fast Queue-based Flood Fill algorithm to fill enclosed regions.
+     */
+    executeFloodFill(ctx, seedWorldX, seedWorldY, colorHex) {
+        const screen = this.worldToScreen(seedWorldX, seedWorldY);
+        const startX = Math.round(screen.x * this.dpr);
+        const startY = Math.round(screen.y * this.dpr);
+        const width = this.drawingCanvas.width;
+        const height = this.drawingCanvas.height;
+
+        if (startX < 0 || startX >= width || startY < 0 || startY >= height) return;
+
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const data = imgData.data;
+
+        const startIdx = (startY * width + startX) * 4;
+        const targetR = data[startIdx];
+        const targetG = data[startIdx + 1];
+        const targetB = data[startIdx + 2];
+        const targetA = data[startIdx + 3];
+
+        const fillColor = this.parseColor(colorHex);
+
+        // If clicking on same color, skip
+        if (Math.abs(targetR - fillColor.r) + Math.abs(targetG - fillColor.g) +
+            Math.abs(targetB - fillColor.b) + Math.abs(targetA - fillColor.a) < 15) {
+            return;
+        }
+
+        const tolerance = 40;
+        const visited = new Uint8Array(width * height);
+
+        const match = (idx) => {
+            return Math.abs(data[idx] - targetR) <= tolerance &&
+                   Math.abs(data[idx + 1] - targetG) <= tolerance &&
+                   Math.abs(data[idx + 2] - targetB) <= tolerance &&
+                   Math.abs(data[idx + 3] - targetA) <= tolerance;
+        };
+
+        // Linear buffer queue for maximum speed
+        const queue = new Int32Array(width * height);
+        let head = 0;
+        let tail = 0;
+
+        const startPos = startY * width + startX;
+        queue[tail++] = startPos;
+        visited[startPos] = 1;
+
+        while (head < tail) {
+            const pos = queue[head++];
+            const cx = pos % width;
+            const cy = (pos / width) | 0;
+            const idx = pos * 4;
+
+            data[idx] = fillColor.r;
+            data[idx + 1] = fillColor.g;
+            data[idx + 2] = fillColor.b;
+            data[idx + 3] = fillColor.a;
+
+            // 4-way expansion
+            if (cx > 0) {
+                const nPos = pos - 1;
+                if (!visited[nPos] && match(nPos * 4)) {
+                    visited[nPos] = 1;
+                    queue[tail++] = nPos;
+                }
+            }
+            if (cx < width - 1) {
+                const nPos = pos + 1;
+                if (!visited[nPos] && match(nPos * 4)) {
+                    visited[nPos] = 1;
+                    queue[tail++] = nPos;
+                }
+            }
+            if (cy > 0) {
+                const nPos = pos - width;
+                if (!visited[nPos] && match(nPos * 4)) {
+                    visited[nPos] = 1;
+                    queue[tail++] = nPos;
+                }
+            }
+            if (cy < height - 1) {
+                const nPos = pos + width;
+                if (!visited[nPos] && match(nPos * 4)) {
+                    visited[nPos] = 1;
+                    queue[tail++] = nPos;
+                }
+            }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+    }
+
+    /**
      * Applies world camera matrix transform to a 2D context.
      */
     applyTransform(ctx) {
@@ -395,6 +525,13 @@ class CanvasEngine {
                 ctx.stroke();
                 break;
             }
+
+            case 'fill-bucket': {
+                if (!isPreview) {
+                    this.executeFloodFill(ctx, op.seedX, op.seedY, op.color);
+                }
+                break;
+            }
         }
 
         ctx.restore();
@@ -409,7 +546,13 @@ class CanvasEngine {
 
         operations.forEach(op => {
             if (!op.undone) {
-                this.drawOperation(this.ctx, op);
+                if (op.type === 'fill-bucket') {
+                    this.ctx.restore(); // restore transform to do pixel-level flood fill
+                    this.drawOperation(this.ctx, op);
+                    this.applyTransform(this.ctx); // re-apply world transform
+                } else {
+                    this.drawOperation(this.ctx, op);
+                }
             }
         });
 
