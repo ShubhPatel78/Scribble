@@ -106,7 +106,8 @@ wss.on('connection', async (ws, req) => {
     });
 
     const parsedUrl = new URL(req.url, 'http://localhost');
-    const initialRoomCode = (parsedUrl.searchParams.get('room') || 'DEFAULT').toString().trim().toUpperCase();
+    const rawRoom = parsedUrl.searchParams.get('room');
+    const initialRoomCode = (rawRoom && rawRoom.trim()) ? rawRoom.trim().toUpperCase() : generateRoomCode();
     const initialUsername = (parsedUrl.searchParams.get('username') || '').toString().trim();
 
     const userId = `user_${++globalUserCounter}_${Math.random().toString(36).substring(2, 7)}`;
@@ -153,7 +154,8 @@ wss.on('connection', async (ws, req) => {
 
             switch (data.type) {
                 case 'join': {
-                    const newRoomCode = (data.roomId || 'DEFAULT').toString().trim().toUpperCase();
+                    const rawNewRoom = data.roomId ? String(data.roomId).trim().toUpperCase() : '';
+                    const newRoomCode = rawNewRoom || generateRoomCode();
                     if (data.username) {
                         username = String(data.username).trim().substring(0, 30);
                         clientInfo.username = username;

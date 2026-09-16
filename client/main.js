@@ -3,10 +3,37 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Helper to generate 6-character room code (avoiding ambiguous chars)
+    function generateRoomCode(len = 6) {
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let code = '';
+        for (let i = 0; i < len; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
     // 1. Extract Room Code & Username from URL
     const urlParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash ? window.location.hash.substring(1) : null;
-    let initialRoom = (urlParams.get('room') || hash || 'DEFAULT').trim().toUpperCase();
+    let pathRoom = null;
+    if (window.location.pathname.startsWith('/room/')) {
+        pathRoom = window.location.pathname.replace('/room/', '').trim();
+    }
+
+    let initialRoom = (urlParams.get('room') || pathRoom || hash || '').trim().toUpperCase();
+
+    // If no room is specified in URL, generate a fresh unique 6-character room code
+    if (!initialRoom) {
+        initialRoom = generateRoomCode(6);
+        const newUrl = `${window.location.pathname}?room=${encodeURIComponent(initialRoom)}`;
+        window.history.replaceState({ room: initialRoom }, '', newUrl);
+    } else if (!urlParams.get('room')) {
+        // Normalize URL to ?room=CODE
+        const newUrl = `/?room=${encodeURIComponent(initialRoom)}`;
+        window.history.replaceState({ room: initialRoom }, '', newUrl);
+    }
+
     let initialUsername = urlParams.get('username') || localStorage.getItem('canvas_username') || '';
 
     // DOM Elements

@@ -28,7 +28,7 @@ class RoomManager {
      * Sanitizes and normalizes room identifiers.
      */
     normalizeCode(code) {
-        if (!code) return 'DEFAULT';
+        if (!code || !String(code).trim()) return generateRoomCode();
         return String(code).trim().toUpperCase();
     }
 
