@@ -133,7 +133,18 @@ wss.on('connection', async (ws, req) => {
             username,
             roomId: currentRoomId,
             snapshot: room.state.getSnapshot(),
-            users: roomManager.getUsers(currentRoomId)
+            users: roomManager.getUsers(currentRoomId),
+            game: {
+                state: room.game.state,
+                round: room.game.currentRound,
+                totalRounds: room.game.totalRounds,
+                drawerId: room.game.currentDrawerId,
+                drawerName: room.game.players.get(room.game.currentDrawerId)?.username || '',
+                wordClue: room.game.getWordClue(),
+                wordLength: room.game.currentWord ? room.game.currentWord.replace(/\s/g, '').length : 0,
+                timeLeft: room.game.timeLeft,
+                players: Array.from(room.game.players.values())
+            }
         }));
     } catch (err) {
         console.error('[Server] Failed sending init:', err);
@@ -192,7 +203,44 @@ wss.on('connection', async (ws, req) => {
                     break;
                 }
 
+                case 'game:start': {
+                    const result = activeRoom.game.startGame(userId);
+                    if (result && result.error) {
+                        ws.send(JSON.stringify({
+                            type: 'chat:message',
+                            message: {
+                                type: 'system',
+                                text: `⚠️ ${result.error}`,
+                                color: '#EF4444'
+                            }
+                        }));
+                    }
+                    break;
+                }
+
+                case 'game:choose_word': {
+                    if (data.word) {
+                        activeRoom.game.selectWord(userId, data.word);
+                    }
+                    break;
+                }
+
+                case 'chat:message': {
+                    if (data.text) {
+                        activeRoom.game.handleChatMessage(userId, data.text);
+                    }
+                    break;
+                }
+
                 case 'stroke:live': {
+                    // During active game, only the drawer can draw
+                    if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
+                        break;
+                    }
+                    if (activeRoom.game.state !== 'LOBBY' && activeRoom.game.state !== 'DRAWING') {
+                        break;
+                    }
+
                     roomManager.broadcast(currentRoomId, {
                         type: 'stroke:live',
                         userId,
@@ -203,6 +251,14 @@ wss.on('connection', async (ws, req) => {
 
                 case 'op:commit': {
                     if (!data.operation) break;
+
+                    // During active game, only the drawer can commit strokes
+                    if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
+                        break;
+                    }
+                    if (activeRoom.game.state !== 'LOBBY' && activeRoom.game.state !== 'DRAWING') {
+                        break;
+                    }
 
                     const op = {
                         ...data.operation,
@@ -222,6 +278,9 @@ wss.on('connection', async (ws, req) => {
                 }
 
                 case 'op:undo': {
+                    if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
+                        break;
+                    }
                     const undoneOp = activeRoom.state.undo(userId);
                     if (undoneOp) {
                         roomManager.broadcast(currentRoomId, {
@@ -235,6 +294,9 @@ wss.on('connection', async (ws, req) => {
                 }
 
                 case 'op:redo': {
+                    if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
+                        break;
+                    }
                     const redoneOp = activeRoom.state.redo(userId);
                     if (redoneOp) {
                         roomManager.broadcast(currentRoomId, {
@@ -248,6 +310,9 @@ wss.on('connection', async (ws, req) => {
                 }
 
                 case 'op:clear': {
+                    if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
+                        break;
+                    }
                     activeRoom.state.clear();
                     roomManager.broadcast(currentRoomId, {
                         type: 'op:clear',

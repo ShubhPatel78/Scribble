@@ -1,4 +1,5 @@
 const DrawingState = require('./drawing-state');
+const { GameEngine } = require('./game-engine');
 const { fetchRoomFromDB, saveRoomToDB, updateRoomSnapshotInDB } = require('./supabase');
 
 /**
@@ -17,7 +18,7 @@ function generateRoomCode() {
 /**
  * RoomManager: Orchestrates multi-tenant isolated collaborative rooms.
  * Manages WebSocket connections, room-scoped state, Supabase persistence,
- * and presence tracking.
+ * presence tracking, and Scribble game loops.
  */
 class RoomManager {
     constructor() {
@@ -37,7 +38,7 @@ class RoomManager {
      * @param {string} customName
      * @returns {Promise<Object>} Created room metadata
      */
-    async createNewRoom(customName = 'Untitled Canvas') {
+    async createNewRoom(customName = 'Untitled Scribble') {
         let code = generateRoomCode();
         while (this.rooms.has(code)) {
             code = generateRoomCode();
@@ -65,15 +66,33 @@ class RoomManager {
         const id = this.normalizeCode(roomId);
 
         if (!this.rooms.has(id)) {
+            const game = new GameEngine();
+            const state = new DrawingState();
+
             const room = {
                 id,
                 name: name || `Room ${id}`,
-                state: new DrawingState(),
+                state,
+                game,
                 clients: new Map(), // ws -> { id, username, color, cursor }
                 createdAt: Date.now(),
                 cleanupTimer: null,
                 saveDbTimer: null,
                 isLoadedFromDb: false
+            };
+
+            // Wire up game engine event handlers
+            game.onBroadcast = (event, payload, excludeWs) => {
+                this.broadcast(id, { type: event, ...payload }, excludeWs);
+            };
+
+            game.onSend = (userId, event, payload) => {
+                this.sendToUser(id, userId, { type: event, ...payload });
+            };
+
+            game.onClearCanvas = () => {
+                state.clear();
+                this.broadcast(id, { type: 'op:clear', userId: 'system' });
             };
 
             this.rooms.set(id, room);
@@ -146,6 +165,11 @@ class RoomManager {
             color: clientInfo.color,
             cursor: null
         });
+
+        if (room.game) {
+            room.game.addPlayer(clientInfo);
+        }
+
         return room;
     }
 
@@ -163,7 +187,13 @@ class RoomManager {
         const clientInfo = room.clients.get(ws);
         room.clients.delete(ws);
 
+        if (clientInfo && room.game) {
+            room.game.removePlayer(clientInfo.id);
+        }
+
         if (room.clients.size === 0) {
+            if (room.game) room.game.resetToLobby();
+
             // Immediately sync snapshot to Supabase before idling
             updateRoomSnapshotInDB(room.id, room.state.getSnapshot());
 
@@ -178,6 +208,25 @@ class RoomManager {
         }
 
         return clientInfo;
+    }
+
+    /**
+     * Sends a message directly to a specific user by userId in a room.
+     */
+    sendToUser(roomId, userId, message) {
+        const room = this.rooms.get(this.normalizeCode(roomId));
+        if (!room) return;
+
+        const payload = JSON.stringify(message);
+        room.clients.forEach((info, ws) => {
+            if (info.id === userId && ws.readyState === 1 /* OPEN */) {
+                try {
+                    ws.send(payload);
+                } catch (err) {
+                    console.error(`[RoomManager] Error sending direct message to ${userId}:`, err);
+                }
+            }
+        });
     }
 
     /**

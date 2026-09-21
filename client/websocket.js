@@ -33,6 +33,14 @@ class WebSocketClient {
         this.onOpClear = null; // (userId) => void
         this.onLiveStroke = null; // (userId, stroke) => void
         this.onRemoteCursor = null; // (cursorData) => void
+
+        // Scribble Game Callbacks
+        this.onGameStateChanged = null; // (gameState) => void
+        this.onWordOptions = null;      // (data) => void
+        this.onSecretWord = null;       // (data) => void
+        this.onTimerTick = null;        // (data) => void
+        this.onChatMessage = null;      // (message) => void
+        this.onGameOver = null;         // (data) => void
     }
 
     connect() {
@@ -145,6 +153,30 @@ class WebSocketClient {
                 if (this.onRemoteCursor) this.onRemoteCursor(data);
                 break;
 
+            case 'game:state_changed':
+                if (this.onGameStateChanged) this.onGameStateChanged(data);
+                break;
+
+            case 'game:word_options':
+                if (this.onWordOptions) this.onWordOptions(data);
+                break;
+
+            case 'game:secret_word':
+                if (this.onSecretWord) this.onSecretWord(data);
+                break;
+
+            case 'game:timer_tick':
+                if (this.onTimerTick) this.onTimerTick(data);
+                break;
+
+            case 'game:over':
+                if (this.onGameOver) this.onGameOver(data);
+                break;
+
+            case 'chat:message':
+                if (this.onChatMessage) this.onChatMessage(data);
+                break;
+
             default:
                 console.warn('[WebSocket] Unrecognized payload type:', data.type);
         }
@@ -154,6 +186,22 @@ class WebSocketClient {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
         }
+    }
+
+    startGame() {
+        this.send({ type: 'game:start' });
+    }
+
+    chooseWord(word) {
+        this.send({ type: 'game:choose_word', word });
+    }
+
+    sendChat(text) {
+        if (!text || !text.trim()) return;
+        this.send({
+            type: 'chat:message',
+            text: text.trim()
+        });
     }
 
     joinRoom(newRoomId, newUsername) {

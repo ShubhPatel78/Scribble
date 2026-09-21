@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         roomId: initialRoom,
         username: initialUsername
     });
+    const gameClient = new GameClient(client, engine);
 
     let operations = [];
     let currentUserId = null;
@@ -162,6 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
         myUndoneCount = 0;
         refreshCanvas();
         updateUserPresence(data.users);
+
+        if (data.game) {
+            gameClient.handleGameState(data.game);
+        }
     };
 
     client.onUserJoined = (user, users) => {

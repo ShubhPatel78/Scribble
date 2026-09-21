@@ -3,23 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>CanvasCollab • Real-Time Collaborative Whiteboard</title>
+    <title>Scribble • Multiplayer Drawing & Guessing Game</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Top Navigation Bar -->
-    <header class="top-nav">
+    <!-- Top Game Navigation Bar -->
+    <header class="top-nav game-top-nav">
         <div class="nav-left">
             <div class="brand">
                 <span class="brand-icon">🎨</span>
-                <span class="brand-name">CanvasCollab</span>
+                <span class="brand-name">Scribble</span>
             </div>
 
+            <!-- Game Round & Timer -->
+            <div class="game-status-pill">
+                <div class="game-round-badge">
+                    <span id="game-round-text">Waiting for players</span>
+                </div>
+                <div class="game-timer-badge idle" id="game-timer-badge">
+                    <span class="timer-icon">⏱️</span>
+                    <span id="game-timer-text">60s</span>
+                </div>
+            </div>
+
+            <!-- Room Code Pill -->
             <div class="room-pill">
-                <span class="room-label">Code:</span>
+                <span class="room-label">Room:</span>
                 <span id="current-room-badge" class="room-code-tag">...</span>
                 
                 <button id="copy-code-btn" class="icon-btn-subtle" title="Copy 6-character room code">
@@ -28,26 +40,28 @@
                 <button id="copy-room-btn" class="icon-btn-subtle" title="Copy direct invite link">
                     📋 <span class="btn-text">Link</span>
                 </button>
-
-                <div class="pill-divider"></div>
-
-                <button id="new-room-btn" class="icon-btn-highlight" title="Create a new room">
-                    ➕ <span class="btn-text">New Room</span>
-                </button>
-                <button id="join-room-btn" class="icon-btn-subtle" title="Join another room using code or link">
-                    🚪 <span class="btn-text">Join Code</span>
+                <button id="join-room-btn" class="icon-btn-subtle" title="Join another room">
+                    🚪 <span class="btn-text">Join</span>
                 </button>
             </div>
         </div>
 
-        <div class="nav-center">
-            <div id="connection-badge" class="connection-badge disconnected">
-                <span class="status-dot"></span>
-                <span id="connection-text">Connecting...</span>
+        <!-- Center: Dynamic Word Hint Bar -->
+        <div class="nav-center game-word-bar">
+            <div id="game-word-hint" class="game-word-hint">
+                <span class="clue-subtle">Scribble Arena — Invite friends to play!</span>
             </div>
+        </div>
 
+        <!-- Right: Actions, Theme & Profile -->
+        <div class="nav-right">
+            <button id="start-game-btn" class="btn-start-game hidden" title="Start the Scribble match!">
+                ▶ Start Game
+            </button>
+
+            <!-- Theme Switcher -->
             <div class="theme-dropdown-container">
-                <button id="theme-btn" class="theme-btn" title="Change Canvas Theme">
+                <button id="theme-btn" class="theme-btn" title="Change Theme">
                     <span id="theme-icon">☀️</span>
                     <span id="theme-name" class="btn-text">Light</span>
                     <span class="dropdown-chevron">▾</span>
@@ -71,14 +85,8 @@
                     </button>
                 </div>
             </div>
-        </div>
 
-        <div class="nav-right">
-            <div class="user-presence">
-                <div id="users-avatar-stack" class="avatar-stack"></div>
-                <span id="users-count-badge" class="badge">1 online</span>
-            </div>
-            
+            <!-- Self Profile -->
             <div class="self-profile">
                 <span id="self-avatar" class="user-circle"></span>
                 <span id="self-name" class="self-username">You</span>
@@ -86,128 +94,166 @@
         </div>
     </header>
 
-    <!-- Floating Canvas Toolbar -->
-    <nav class="floating-toolbar">
-        <div class="tool-group">
-            <button class="tool-btn active" data-tool="brush" title="Pen / Brush (P)">
-                ✏️
-            </button>
-            <button class="tool-btn" data-tool="line" title="Line (L)">
-                📏
-            </button>
-            <button class="tool-btn" data-tool="rectangle" title="Rectangle (R)">
-                ⬜
-            </button>
-            <button class="tool-btn" data-tool="circle" title="Circle (O)">
-                ⭕
-            </button>
-            <button class="tool-btn" data-tool="fill-bucket" title="Paint Bucket / Flood Fill (F)">
-                🪣
-            </button>
-            <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
-                    <path d="M22 21H7"/>
-                    <path d="m5 11 9 9"/>
-                </svg>
-            </button>
-            <button class="tool-btn" data-tool="pan" title="Pan Hand Tool (H or hold Space)">
-                ✋
-            </button>
-        </div>
-
-        <div class="toolbar-divider"></div>
-
-        <!-- Color & Width Popover Triggers -->
-        <div class="tool-group">
-            <div class="color-picker-wrapper">
-                <input type="color" id="primary-color-picker" value="#3B82F6" title="Choose color">
+    <!-- Main Game Arena Layout (Left: Scoreboard | Center: Canvas | Right: Chat) -->
+    <div class="game-arena">
+        <!-- Left Sidebar: Scoreboard -->
+        <aside class="game-sidebar game-scoreboard">
+            <div class="sidebar-header">
+                <span class="sidebar-title">🏆 Scoreboard</span>
+                <span id="game-player-count" class="player-count-badge">0 players</span>
             </div>
-            <div class="preset-colors">
-                <button class="color-dot active" style="background: #1e293b" data-color="#1e293b" title="Dark Slate"></button>
-                <button class="color-dot" style="background: #ef4444" data-color="#ef4444" title="Red"></button>
-                <button class="color-dot" style="background: #10b981" data-color="#10b981" title="Emerald"></button>
-                <button class="color-dot" style="background: #3b82f6" data-color="#3b82f6" title="Blue"></button>
-                <button class="color-dot" style="background: #f59e0b" data-color="#f59e0b" title="Amber"></button>
-                <button class="color-dot" style="background: #8b5cf6" data-color="#8b5cf6" title="Purple"></button>
+            <div id="game-players-list" class="players-list-scroll">
+                <!-- Dynamically populated by GameClient -->
             </div>
-        </div>
+        </aside>
 
-        <div class="toolbar-divider"></div>
+        <!-- Center: Canvas Wrapper -->
+        <section class="game-canvas-area" id="game-canvas-wrapper">
+            <main id="viewport" class="canvas-viewport">
+                <canvas id="drawing-canvas"></canvas>
+                <canvas id="overlay-canvas"></canvas>
+            </main>
 
-        <!-- Stroke Width Slider -->
-        <div class="tool-group size-slider-group">
-            <div class="size-preview-dot" id="size-preview-dot"></div>
-            <input type="range" id="stroke-size-slider" class="stroke-slider"
-                   min="1" max="80" value="4" title="Brush / Eraser Size">
-            <span class="size-label" id="size-label">4px</span>
-        </div>
+            <!-- Modal: Word Choice (Visible only to active drawer) -->
+            <div id="word-choice-modal" class="game-modal-backdrop hidden">
+                <div class="word-choice-card">
+                    <h2>Pick a word to draw!</h2>
+                    <p class="word-choice-sub">You have <span id="word-choice-timer" class="highlight-timer">15s</span> to choose</p>
+                    <div id="word-options-container" class="word-options-grid">
+                        <!-- Populated dynamically: 3 buttons -->
+                    </div>
+                </div>
+            </div>
 
-        <div class="toolbar-divider"></div>
+            <!-- Modal: Game Over / Winner Podium -->
+            <div id="podium-modal" class="game-modal-backdrop hidden">
+                <div class="podium-card">
+                    <h2 class="podium-title">🎉 Game Over!</h2>
+                    <p class="podium-sub">Congratulations to the winners!</p>
+                    <div id="podium-container" class="podium-grid">
+                        <!-- 1st, 2nd, 3rd podium columns -->
+                    </div>
+                    <div class="podium-actions">
+                        <button id="play-again-btn" class="btn-primary btn-large">🔄 Play Again</button>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Shape Fill Toggle -->
-        <div class="tool-group">
-            <button id="toggle-fill-btn" class="toggle-btn" title="Toggle Shape Fill">
-                🎨 Fill: <span id="fill-status">Off</span>
-            </button>
-        </div>
-    </nav>
+            <!-- Floating Drawing Toolbar (Drawer controls) -->
+            <nav class="floating-toolbar game-toolbar">
+                <div class="tool-group">
+                    <button class="tool-btn active" data-tool="brush" title="Pen / Brush (P)">
+                        ✏️
+                    </button>
+                    <button class="tool-btn" data-tool="line" title="Line (L)">
+                        📏
+                    </button>
+                    <button class="tool-btn" data-tool="rectangle" title="Rectangle (R)">
+                        ⬜
+                    </button>
+                    <button class="tool-btn" data-tool="circle" title="Circle (O)">
+                        ⭕
+                    </button>
+                    <button class="tool-btn" data-tool="fill-bucket" title="Paint Bucket / Flood Fill (F)">
+                        🪣
+                    </button>
+                    <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
+                            <path d="M22 21H7"/>
+                            <path d="m5 11 9 9"/>
+                        </svg>
+                    </button>
+                    <button class="tool-btn" data-tool="pan" title="Pan Hand Tool (H or hold Space)">
+                        ✋
+                    </button>
+                </div>
 
-    <!-- Floating Action Controls (Undo, Redo, Zoom, Clear, Export) -->
-    <div class="floating-controls bottom-left">
-        <button id="undo-btn" class="action-btn" title="Undo (Ctrl+Z)" disabled>
-            ↩️
-        </button>
-        <button id="redo-btn" class="action-btn" title="Redo (Ctrl+Y / Cmd+Shift+Z)" disabled>
-            ↪️
-        </button>
-        <div class="control-divider"></div>
-        <button id="zoom-out-btn" class="action-btn" title="Zoom Out (-)">
-            🔍−
-        </button>
-        <span id="zoom-level-text" class="zoom-text">100%</span>
-        <button id="zoom-in-btn" class="action-btn" title="Zoom In (+)">
-            🔍+
-        </button>
-        <button id="reset-view-btn" class="action-btn" title="Reset View to 100%">
-            🎯
-        </button>
+                <div class="toolbar-divider"></div>
+
+                <!-- Color Palette -->
+                <div class="tool-group">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="primary-color-picker" value="#1e293b" title="Custom color">
+                    </div>
+                    <div class="preset-colors">
+                        <button class="color-dot active" style="background: #1e293b" data-color="#1e293b" title="Black/Slate"></button>
+                        <button class="color-dot" style="background: #ef4444" data-color="#ef4444" title="Red"></button>
+                        <button class="color-dot" style="background: #f97316" data-color="#f97316" title="Orange"></button>
+                        <button class="color-dot" style="background: #f59e0b" data-color="#f59e0b" title="Yellow"></button>
+                        <button class="color-dot" style="background: #10b981" data-color="#10b981" title="Green"></button>
+                        <button class="color-dot" style="background: #06b6d4" data-color="#06b6d4" title="Cyan"></button>
+                        <button class="color-dot" style="background: #3b82f6" data-color="#3b82f6" title="Blue"></button>
+                        <button class="color-dot" style="background: #8b5cf6" data-color="#8b5cf6" title="Purple"></button>
+                        <button class="color-dot" style="background: #ec4899" data-color="#ec4899" title="Pink"></button>
+                        <button class="color-dot" style="background: #78350f" data-color="#78350f" title="Brown"></button>
+                        <button class="color-dot" style="background: #ffffff" data-color="#ffffff" title="White"></button>
+                    </div>
+                </div>
+
+                <div class="toolbar-divider"></div>
+
+                <!-- Stroke Size Slider -->
+                <div class="tool-group size-slider-group">
+                    <div class="size-preview-dot" id="size-preview-dot"></div>
+                    <input type="range" id="stroke-size-slider" class="stroke-slider"
+                           min="1" max="80" value="4" title="Brush / Eraser Size">
+                    <span class="size-label" id="size-label">4px</span>
+                </div>
+
+                <div class="toolbar-divider"></div>
+
+                <!-- Shape Fill Toggle -->
+                <div class="tool-group">
+                    <button id="toggle-fill-btn" class="toggle-btn" title="Toggle Shape Fill">
+                        🎨 Fill: <span id="fill-status">Off</span>
+                    </button>
+                </div>
+
+                <div class="toolbar-divider"></div>
+
+                <!-- Action Controls (Undo, Redo, Clear) -->
+                <div class="tool-group">
+                    <button id="undo-btn" class="action-btn" title="Undo (Ctrl+Z)">↩️</button>
+                    <button id="redo-btn" class="action-btn" title="Redo (Ctrl+Y)">↪️</button>
+                    <button id="clear-board-btn" class="action-btn btn-danger-icon" title="Clear canvas">🗑️</button>
+                </div>
+            </nav>
+        </section>
+
+        <!-- Right Sidebar: Live Chat & Guessing Feed -->
+        <aside class="game-sidebar game-chat-panel">
+            <div class="sidebar-header">
+                <span class="sidebar-title">💬 Live Chat & Guesses</span>
+            </div>
+            <div id="chat-messages" class="chat-messages-feed">
+                <div class="chat-msg msg-system">
+                    <span class="system-text">👋 Welcome to Scribble! Guess the word when someone draws.</span>
+                </div>
+            </div>
+            <form id="chat-form" class="chat-input-row" autocomplete="off">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Type your guess here..." maxlength="100" autocomplete="off" autocorrect="off">
+                <button type="submit" id="chat-send-btn" class="chat-send-btn">Guess</button>
+            </form>
+        </aside>
     </div>
 
-    <div class="floating-controls bottom-right">
-        <button id="export-png-btn" class="btn-secondary" title="Download Canvas as PNG">
-            📸 Export PNG
-        </button>
-        <button id="export-json-btn" class="btn-secondary" title="Export Board State (JSON)">
-            💾 Save JSON
-        </button>
-        <button id="clear-board-btn" class="btn-danger" title="Clear board for all users">
-            🗑️ Clear
-        </button>
-    </div>
-
-    <!-- Eraser Cursor (lightweight DOM element — no canvas redraws) -->
+    <!-- Eraser Cursor (lightweight DOM element) -->
     <div id="eraser-cursor" class="eraser-cursor hidden"></div>
-
-    <!-- Main Canvas Viewport -->
-    <main id="viewport" class="canvas-viewport">
-        <canvas id="drawing-canvas"></canvas>
-        <canvas id="overlay-canvas"></canvas>
-    </main>
 
     <!-- Modal: Create New Room -->
     <div id="new-room-modal" class="modal-backdrop hidden">
         <div class="modal-card">
-            <h3>🎨 Create New Whiteboard</h3>
+            <h3>🎨 Create New Scribble Room</h3>
             <p>A new room will be created with a unique 6-character code and shareable link.</p>
             <form id="new-room-form">
-                <label for="new-room-name-input">Canvas Name (Optional):</label>
-                <input type="text" id="new-room-name-input" placeholder="e.g. Sprint Architecture, Brainstorming" maxlength="40">
-                <label for="new-room-user-input">Your Display Name:</label>
+                <label for="new-room-name-input">Room Name (Optional):</label>
+                <input type="text" id="new-room-name-input" placeholder="e.g. Friends Match, Family Game" maxlength="40">
+                <label for="new-room-user-input">Your Nickname:</label>
                 <input type="text" id="new-room-user-input" placeholder="e.g. Alice" maxlength="25">
                 <div class="modal-actions">
                     <button type="button" id="new-room-cancel-btn" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Generate Room</button>
+                    <button type="submit" class="btn-primary">Create Room</button>
                 </div>
             </form>
         </div>
@@ -216,16 +262,16 @@
     <!-- Modal: Join Room with Code or Link -->
     <div id="join-room-modal" class="modal-backdrop hidden">
         <div class="modal-card">
-            <h3>🚪 Join Collaborative Room</h3>
+            <h3>🚪 Join Scribble Room</h3>
             <p>Enter a 6-character room code (e.g. <code>K9X2P4</code>) or paste a full room link.</p>
             <form id="join-room-form">
                 <label for="join-code-input">Room Code or Invite Link:</label>
                 <input type="text" id="join-code-input" placeholder="e.g. K9X2P4 or https://.../?room=K9X2P4" required autocomplete="off">
-                <label for="join-username-input">Your Display Name:</label>
+                <label for="join-username-input">Your Nickname:</label>
                 <input type="text" id="join-username-input" placeholder="e.g. Bob" maxlength="25">
                 <div class="modal-actions">
                     <button type="button" id="join-cancel-btn" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Join Room</button>
+                    <button type="submit" class="btn-primary">Join Match</button>
                 </div>
             </form>
         </div>
@@ -239,6 +285,7 @@
     <!-- Scripts -->
     <script src="canvas.js"></script>
     <script src="websocket.js"></script>
+    <script src="game-client.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

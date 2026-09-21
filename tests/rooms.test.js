@@ -57,6 +57,9 @@ test('RoomManager - broadcasts scoped only to room members', () => {
     rm.addClient('room-a', mockWsA, { id: 'user_a', username: 'Alice', color: '#ff0000' });
     rm.addClient('room-b', mockWsB, { id: 'user_b', username: 'Bob', color: '#00ff00' });
 
+    messagesA.length = 0;
+    messagesB.length = 0;
+
     rm.broadcast('room-a', { type: 'test:ping', value: 42 });
 
     assert.equal(messagesA.length, 1);
