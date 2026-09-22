@@ -153,6 +153,39 @@
                 </div>
             </div>
 
+            <!-- Modal: Round Summary & 10s Leaderboard -->
+            <div id="round-end-modal" class="game-modal-backdrop hidden">
+                <div class="round-end-card">
+                    <div class="round-end-header">
+                        <span class="round-end-badge">Round Summary</span>
+                        <div class="round-end-countdown">Next turn in <span id="round-end-timer" class="highlight-timer">10s</span></div>
+                    </div>
+                    
+                    <div class="round-word-reveal">
+                        <span class="reveal-label">The word was:</span>
+                        <h2 id="round-end-word" class="reveal-word">...</h2>
+                    </div>
+
+                    <!-- Fastest Guesser Highlight -->
+                    <div id="round-fastest-banner" class="fastest-guesser-banner hidden">
+                        <span class="fastest-icon">⚡</span>
+                        <div class="fastest-details">
+                            <span class="fastest-title">Fastest Guess (Max Points)</span>
+                            <span id="round-fastest-name" class="fastest-name">...</span>
+                        </div>
+                        <span id="round-fastest-points" class="fastest-pts">+500 pts</span>
+                    </div>
+
+                    <!-- Round Standings & Points gained this turn -->
+                    <div class="round-leaderboard-section">
+                        <div class="round-leaderboard-title">🏆 Standings & Round Points</div>
+                        <div id="round-leaderboard-list" class="round-leaderboard-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Modal: Game Over / Winner Podium -->
             <div id="podium-modal" class="game-modal-backdrop hidden">
                 <div class="podium-card">

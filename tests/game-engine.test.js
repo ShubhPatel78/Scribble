@@ -267,3 +267,52 @@ test('GameEngine - normal in-game chatting for drawer and guessers with spoiler 
 
     game.clearTimer();
 });
+
+test('GameEngine - 10s round leaderboard shows word reveal, fastest guesser, and standings', () => {
+    const broadcasts = [];
+    const game = new GameEngine();
+    game.onBroadcast = (event, payload) => broadcasts.push({ event, payload });
+    game.onSend = () => {};
+    game.onClearCanvas = () => {};
+
+    assert.equal(game.roundEndTime, 10, 'Default round end time should be 10 seconds');
+
+    game.addPlayer({ id: 'u1', username: 'Alice', color: '#ff0000' });
+    game.addPlayer({ id: 'u2', username: 'Bob', color: '#00ff00' });
+    game.addPlayer({ id: 'u3', username: 'Charlie', color: '#0000ff' });
+
+    game.startGame('u1');
+    game.selectWord('u1', 'pyramid');
+
+    // Bob guesses first (fastest)
+    game.timeLeft = 55; // 55s left -> high speed score
+    game.handleChatMessage('u2', 'pyramid');
+
+    // Charlie guesses later
+    game.timeLeft = 20; // 20s left -> lower speed score
+    game.handleChatMessage('u3', 'pyramid');
+
+    // Round ends (all guessed)
+    assert.equal(game.state, GAME_STATES.ROUND_END);
+    assert.equal(game.timeLeft, 10, 'Time left should be 10 seconds');
+
+    const roundEndEvent = broadcasts.find(b => b.event === 'game:round_end');
+    assert.ok(roundEndEvent, 'game:round_end event should be broadcast');
+    const summary = roundEndEvent.payload;
+
+    assert.equal(summary.word, 'pyramid', 'Word must be revealed');
+    assert.equal(summary.timeLeft, 10);
+    assert.equal(summary.drawer.username, 'Alice');
+    assert.ok(summary.drawer.points > 0, 'Drawer earned points for successful guesses');
+
+    // Bob should be the fastest guesser with higher points
+    assert.equal(summary.turnScores[0].userId, 'u2');
+    assert.equal(summary.turnScores[0].isFastest, true);
+    assert.ok(summary.turnScores[0].points > summary.turnScores[1].points);
+
+    // Leaderboard has all 3 players
+    assert.equal(summary.leaderboard.length, 3);
+
+    game.clearTimer();
+});
+

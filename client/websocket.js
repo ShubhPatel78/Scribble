@@ -40,6 +40,7 @@ class WebSocketClient {
         this.onSecretWord = null;       // (data) => void
         this.onTimerTick = null;        // (data) => void
         this.onChatMessage = null;      // (message) => void
+        this.onRoundEnd = null;         // (data) => void
         this.onGameOver = null;         // (data) => void
     }
 
@@ -176,6 +177,10 @@ class WebSocketClient {
 
             case 'game:timer_tick':
                 if (this.onTimerTick) this.onTimerTick(data);
+                break;
+
+            case 'game:round_end':
+                if (this.onRoundEnd) this.onRoundEnd(data);
                 break;
 
             case 'game:over':

@@ -60,6 +60,15 @@ class GameClient {
         this.wordChoiceTimer = document.getElementById('word-choice-timer');
         this.wordOptionsContainer = document.getElementById('word-options-container');
 
+        // Round End & Leaderboard Modal
+        this.roundEndModal = document.getElementById('round-end-modal');
+        this.roundEndWord = document.getElementById('round-end-word');
+        this.roundEndTimer = document.getElementById('round-end-timer');
+        this.roundFastestBanner = document.getElementById('round-fastest-banner');
+        this.roundFastestName = document.getElementById('round-fastest-name');
+        this.roundFastestPoints = document.getElementById('round-fastest-points');
+        this.roundLeaderboardList = document.getElementById('round-leaderboard-list');
+
         this.podiumModal = document.getElementById('podium-modal');
         this.podiumContainer = document.getElementById('podium-container');
         this.playAgainBtn = document.getElementById('play-again-btn');
@@ -178,6 +187,7 @@ class GameClient {
         this.client.onWordOptions = (data) => this.showWordChoiceModal(data.words, data.time);
         this.client.onSecretWord = (data) => this.handleSecretWord(data.word);
         this.client.onTimerTick = (data) => this.updateTimer(data.timeLeft);
+        this.client.onRoundEnd = (data) => this.showRoundEnd(data);
         this.client.onChatMessage = (msg) => this.appendChatMessage(msg);
         this.client.onGameOver = (data) => this.showPodium(data.podium);
     }
@@ -259,15 +269,29 @@ class GameClient {
             this.wordChoiceModal.classList.add('hidden');
         }
 
-        // 6. Update dynamic chat placeholder & action label
+        // 6. Handle Round End Modal
+        if (this.gameState === 'ROUND_END') {
+            if (stateData.roundSummary) {
+                this.showRoundEnd(stateData.roundSummary);
+            }
+        } else {
+            if (this.roundEndModal) {
+                this.roundEndModal.classList.add('hidden');
+            }
+        }
+
+        // 7. Update dynamic chat placeholder & action label
         this.updateChatPlaceholder();
     }
 
     updateTimer(seconds) {
         this.timeLeft = seconds;
-        if (!this.timerText) return;
-
-        this.timerText.textContent = `${seconds}s`;
+        if (this.timerText) {
+            this.timerText.textContent = `${seconds}s`;
+        }
+        if (this.roundEndTimer && this.gameState === 'ROUND_END') {
+            this.roundEndTimer.textContent = `${seconds}s`;
+        }
 
         if (this.timerBadge) {
             this.timerBadge.classList.remove('urgent', 'warning', 'idle');
@@ -404,6 +428,82 @@ class GameClient {
         }
 
         this.wordChoiceModal.classList.remove('hidden');
+    }
+
+    showRoundEnd(data) {
+        if (!data) return;
+
+        if (this.roundEndWord) {
+            this.roundEndWord.textContent = (data.word || '').toUpperCase();
+        }
+        if (this.roundEndTimer) {
+            this.roundEndTimer.textContent = `${data.timeLeft || this.timeLeft || 10}s`;
+        }
+
+        // Highlight fastest guesser who scored max points
+        const turnScores = data.turnScores || [];
+        const guessers = turnScores.filter(ts => !ts.isDrawer && ts.points > 0);
+        const fastest = guessers.find(g => g.isFastest) || guessers[0];
+
+        if (this.roundFastestBanner) {
+            if (fastest) {
+                this.roundFastestBanner.classList.remove('hidden');
+                if (this.roundFastestName) {
+                    this.roundFastestName.textContent = fastest.username || 'Anonymous';
+                }
+                if (this.roundFastestPoints) {
+                    this.roundFastestPoints.textContent = `+${fastest.points} pts${fastest.guessTime ? ` (${fastest.guessTime}s)` : ''}`;
+                }
+            } else {
+                this.roundFastestBanner.classList.add('hidden');
+            }
+        }
+
+        // Render Round Standings & Points Gained
+        if (this.roundLeaderboardList) {
+            this.roundLeaderboardList.innerHTML = '';
+            const leaderboard = data.leaderboard || this.players || [];
+            const sortedLeaderboard = [...leaderboard].sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            sortedLeaderboard.forEach((player, idx) => {
+                const isMe = (player.id === this.client.clientId);
+                const playerTurnScore = turnScores.find(ts => ts.userId === player.id);
+                const rankMedal = idx === 0 ? '👑' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`));
+
+                const item = document.createElement('div');
+                item.className = `round-leader-item ${isMe ? 'self' : ''}`;
+
+                let ptsGainedHtml = '';
+                if (playerTurnScore && playerTurnScore.points > 0) {
+                    if (playerTurnScore.isDrawer) {
+                        ptsGainedHtml = `<span class="round-leader-pts-gained" style="color: #f59e0b; background: rgba(245, 158, 11, 0.15)">+${playerTurnScore.points} (Drawing)</span>`;
+                    } else if (playerTurnScore.isFastest) {
+                        ptsGainedHtml = `<span class="round-leader-pts-gained" style="color: #10b981; font-weight: 900">⚡ +${playerTurnScore.points}</span>`;
+                    } else {
+                        ptsGainedHtml = `<span class="round-leader-pts-gained">+${playerTurnScore.points}</span>`;
+                    }
+                }
+
+                item.innerHTML = `
+                    <div class="round-leader-rank">${rankMedal}</div>
+                    <div class="round-leader-avatar" style="background: ${player.color || '#3B82F6'}">
+                        ${(player.username || 'P')[0].toUpperCase()}
+                    </div>
+                    <div class="round-leader-info">
+                        <span class="round-leader-name">${this.escapeHtml(player.username)}${isMe ? ' (You)' : ''}</span>
+                        ${player.id === data.drawer?.id ? '<span class="round-leader-role">🎨 Drawer</span>' : ''}
+                    </div>
+                    ${ptsGainedHtml}
+                    <div class="round-leader-total">${player.score || 0} pts</div>
+                `;
+
+                this.roundLeaderboardList.appendChild(item);
+            });
+        }
+
+        if (this.roundEndModal) {
+            this.roundEndModal.classList.remove('hidden');
+        }
     }
 
     showPodium(rankedPlayers) {

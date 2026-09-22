@@ -24,7 +24,8 @@ class GameEngine {
         this.totalRounds = Math.max(1, Math.min(10, parseInt(options.totalRounds, 10) || 3));
         this.drawTime = Math.max(15, Math.min(240, parseInt(options.drawTime, 10) || 60)); // seconds
         this.chooseWordTime = options.chooseWordTime || 15; // seconds
-        this.roundEndTime = options.roundEndTime || 5; // seconds
+        this.roundEndTime = options.roundEndTime || 10; // 10 seconds leaderboard display per round
+        this.turnScores = new Map(); // userId -> { userId, username, color, points, isFastest, guessTime, isDrawer }
 
         // Game State
         this.state = GAME_STATES.LOBBY;
@@ -329,6 +330,7 @@ class GameEngine {
         this.clearTimer();
         this.currentWord = chosenWord;
         this.usedWords.add(chosenWord);
+        this.turnScores = new Map(); // Reset round scores for the new drawing turn
         this.state = GAME_STATES.DRAWING;
         this.timeLeft = this.drawTime;
         this.turnStartTime = Date.now();
@@ -412,11 +414,31 @@ class GameEngine {
                     const points = Math.max(100, Math.round(500 * (this.timeLeft / this.drawTime)));
                     player.score += points;
 
+                    const isFastest = (this.correctGuessCount === 1);
+                    if (!this.turnScores) this.turnScores = new Map();
+                    this.turnScores.set(player.id, {
+                        userId: player.id,
+                        username: player.username,
+                        color: player.color,
+                        points,
+                        isFastest,
+                        guessTime: Math.max(1, this.drawTime - this.timeLeft)
+                    });
+
                     // Drawer also earns points (up to 300 pts)
                     const totalGuessers = this.players.size - 1;
                     const drawer = this.players.get(this.currentDrawerId);
                     if (drawer && totalGuessers > 0) {
-                        drawer.score += Math.round(300 / totalGuessers);
+                        const drawerEarned = Math.round(300 / totalGuessers);
+                        drawer.score += drawerEarned;
+                        const prevDrawerEarned = this.turnScores.get(drawer.id)?.points || 0;
+                        this.turnScores.set(drawer.id, {
+                            userId: drawer.id,
+                            username: drawer.username,
+                            color: drawer.color,
+                            points: prevDrawerEarned + drawerEarned,
+                            isDrawer: true
+                        });
                     }
 
                     this.broadcastChat({
@@ -424,7 +446,8 @@ class GameEngine {
                         userId: player.id,
                         username: player.username,
                         points,
-                        text: `${player.username} guessed the word! (+${points} pts)`,
+                        isFastest,
+                        text: `${player.username} guessed the word! (+${points} pts)${isFastest ? ' ⚡ (Fastest Guess!)' : ''}`,
                         color: '#10B981'
                     });
 
@@ -493,12 +516,27 @@ class GameEngine {
     }
 
     /**
-     * Ends the current turn, shows the secret word, and schedules the next turn.
+     * Ends the current turn, shows the secret word, broadcasts the round leaderboard, and schedules the next turn.
      */
     endTurn(reason = 'time_up') {
         this.clearTimer();
         this.state = GAME_STATES.ROUND_END;
-        this.timeLeft = this.roundEndTime;
+        this.timeLeft = this.roundEndTime; // 10 seconds leaderboard display
+
+        const turnResults = Array.from(this.turnScores?.values() || []);
+        turnResults.sort((a, b) => (b.points || 0) - (a.points || 0));
+
+        const roundSummary = {
+            word: this.currentWord,
+            drawer: {
+                id: this.currentDrawerId,
+                username: this.players.get(this.currentDrawerId)?.username || 'Drawer',
+                points: this.turnScores?.get(this.currentDrawerId)?.points || 0
+            },
+            turnScores: turnResults,
+            leaderboard: this.getPodium(),
+            timeLeft: this.timeLeft
+        };
 
         this.broadcastGameState();
         this.broadcastChat({
@@ -507,7 +545,11 @@ class GameEngine {
             color: '#8B5CF6'
         });
 
-        // 5s Round End delay then next turn
+        if (this.onBroadcast) {
+            this.onBroadcast('game:round_end', roundSummary);
+        }
+
+        // 10s Round End delay then next turn
         this.timerInterval = setInterval(() => {
             this.timeLeft--;
             this.broadcastTime();
@@ -599,6 +641,23 @@ class GameEngine {
             connected: p.connected !== false
         }));
 
+        let roundSummary = null;
+        if (this.state === GAME_STATES.ROUND_END) {
+            const turnResults = Array.from(this.turnScores?.values() || []);
+            turnResults.sort((a, b) => (b.points || 0) - (a.points || 0));
+            roundSummary = {
+                word: this.currentWord,
+                drawer: {
+                    id: this.currentDrawerId,
+                    username: this.players.get(this.currentDrawerId)?.username || 'Drawer',
+                    points: this.turnScores?.get(this.currentDrawerId)?.points || 0
+                },
+                turnScores: turnResults,
+                leaderboard: this.getPodium(),
+                timeLeft: this.timeLeft
+            };
+        }
+
         this.onBroadcast('game:state_changed', {
             state: this.state,
             round: this.currentRound,
@@ -609,7 +668,8 @@ class GameEngine {
             wordClue: this.getWordClue(),
             wordLength: this.currentWord ? this.currentWord.replace(/\s/g, '').length : 0,
             timeLeft: this.timeLeft,
-            players: playersList
+            players: playersList,
+            roundSummary
         });
     }
 
