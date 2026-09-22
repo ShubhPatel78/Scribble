@@ -560,6 +560,9 @@ body {
     height: 100%;
     cursor: crosshair;
     touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
     background-color: var(--canvas-bg);
     background-image: var(--canvas-grid-type);
     background-size: var(--canvas-grid-size);
@@ -593,6 +596,7 @@ body {
     z-index: 25;
     user-select: none;
     -webkit-user-select: none;
+    touch-action: manipulation;
 }
 
 .zoom-pill-btn {
@@ -609,6 +613,7 @@ body {
     cursor: pointer;
     transition: background 0.15s ease, transform 0.1s ease;
     padding: 0;
+    touch-action: manipulation;
 }
 
 .zoom-pill-btn:hover {
@@ -631,6 +636,7 @@ body {
     cursor: pointer;
     border-radius: 6px;
     transition: color 0.15s ease, background 0.15s ease;
+    touch-action: manipulation;
 }
 
 .zoom-pill-label:hover {

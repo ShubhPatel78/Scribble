@@ -298,6 +298,9 @@ class GameClient {
 
     updateDrawerPermissions() {
         const canDraw = (this.gameState === 'LOBBY' || (this.gameState === 'DRAWING' && this.isDrawer));
+        if (this.engine) {
+            this.engine.canDraw = canDraw;
+        }
 
         if (this.floatingToolbar) {
             if (canDraw) {
@@ -314,11 +317,8 @@ class GameClient {
         }
 
         if (this.viewport) {
-            if (canDraw) {
-                this.viewport.style.pointerEvents = 'auto';
-            } else {
-                this.viewport.style.pointerEvents = 'none';
-            }
+            // ALWAYS keep viewport active so guessers and spectators can pinch-to-zoom and pan
+            this.viewport.style.pointerEvents = 'auto';
         }
     }
 

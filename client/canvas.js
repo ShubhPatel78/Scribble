@@ -27,6 +27,7 @@ class CanvasEngine {
         this.isFillEnabled = false;
 
         // Interactive drawing state
+        this.canDraw = true; // Controlled by GameClient (drawer vs guesser)
         this.isInteracting = false;
         this.isPanning = false;
         this.panStartX = 0;
@@ -36,11 +37,14 @@ class CanvasEngine {
         this.lastEraserPoint = null;  // last point painted — for incremental erase
 
         // Multi-touch pinch zoom & pan state
-        this.activePointers = new Map(); // pointerId -> { clientX, clientY }
         this.pinchStartDist = 0;
         this.pinchStartZoom = 1.0;
         this.pinchCenter = { x: 0, y: 0 };
+        this.pinchStartPan = { x: 0, y: 0 };
         this.isPinching = false;
+        this.lastTapTime = 0;
+        this.lastTapX = 0;
+        this.lastTapY = 0;
 
         // In-flight remote live strokes and cursors
         this.remoteLiveStrokes = new Map(); // userId -> { points, color, width, tool }
@@ -146,36 +150,259 @@ class CanvasEngine {
     }
 
     bindEvents() {
-        // Pointer down
-        this.viewport.addEventListener('pointerdown', (e) => {
-            if (e.pointerId !== undefined) {
-                this.activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-            }
+        // =========================================================================
+        // 1. Touch Events (Multi-touch pinch zoom & pan, single-touch draw / pan)
+        // =========================================================================
+        this.viewport.addEventListener('touchstart', (e) => {
+            if (e.touches.length >= 2) {
+                // Two or more touches: Pinch to Zoom & Two-Finger Pan
+                e.preventDefault();
+                if (this.isInteracting) {
+                    this.isInteracting = false;
+                    this.activeStrokePoints = [];
+                    this.activeShapeStart = null;
+                    this.lastEraserPoint = null;
+                    this.renderOverlay();
+                }
 
-            // If 2 or more pointers (e.g. 2 fingers on mobile), initiate pinch zoom/pan & cancel drawing
-            if (this.activePointers.size >= 2) {
-                this.isInteracting = false;
-                this.activeStrokePoints = [];
-                this.activeShapeStart = null;
-                this.lastEraserPoint = null;
-                this.renderOverlay();
-
-                const pts = Array.from(this.activePointers.values());
-                const p1 = pts[0];
-                const p2 = pts[1];
-                this.pinchStartDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                this.pinchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
                 this.pinchStartZoom = this.zoom;
                 this.pinchCenter = {
-                    x: (p1.clientX + p2.clientX) / 2,
-                    y: (p1.clientY + p2.clientY) / 2
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
                 };
                 this.pinchStartPan = { x: this.panX, y: this.panY };
                 this.isPinching = true;
+                this.isPanning = false;
                 return;
             }
 
-            // Middle mouse button or Space key or Pan tool triggers pan
-            if (e.button === 1 || this.currentTool === 'pan' || e.spaceKey) {
+            if (e.touches.length === 1) {
+                const t = e.touches[0];
+
+                // Double tap gesture: Zoom in or reset to 100%
+                const now = Date.now();
+                if (this.lastTapTime && now - this.lastTapTime < 320 && Math.hypot(t.clientX - this.lastTapX, t.clientY - this.lastTapY) < 30) {
+                    this.lastTapTime = 0;
+                    e.preventDefault();
+                    if (Math.abs(this.zoom - 1.0) > 0.05) {
+                        this.resetView();
+                    } else {
+                        this.setZoom(1.8, t.clientX, t.clientY);
+                    }
+                    return;
+                }
+                this.lastTapTime = now;
+                this.lastTapX = t.clientX;
+                this.lastTapY = t.clientY;
+
+                // If not allowed to draw (e.g. guesser/spectator) or if tool is 'pan', single touch pans
+                if (!this.canDraw || this.currentTool === 'pan') {
+                    e.preventDefault();
+                    this.isPanning = true;
+                    this.panStartX = t.clientX - this.panX;
+                    this.panStartY = t.clientY - this.panY;
+                    return;
+                }
+
+                // Single finger drawing
+                e.preventDefault();
+                const world = this.screenToWorld(t.clientX, t.clientY);
+                this.isInteracting = true;
+                this.activeShapeStart = world;
+                this.activeStrokePoints = [world];
+
+                if (this.currentTool === 'fill-bucket') {
+                    const opId = `op_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+                    const op = {
+                        id: opId,
+                        type: 'fill-bucket',
+                        color: this.currentColor,
+                        seedX: world.x,
+                        seedY: world.y
+                    };
+                    this.executeFloodFill(this.ctx, world.x, world.y, this.currentColor);
+                    if (this.onCommitOperation) {
+                        this.onCommitOperation(op);
+                    }
+                    return;
+                }
+
+                if (this.currentTool === 'eraser') {
+                    this.lastEraserPoint = world;
+                    this._paintEraserSegment(world, world);
+                } else if (this.currentTool === 'brush') {
+                    if (this.onLiveStroke) {
+                        this.onLiveStroke({
+                            type: 'brush',
+                            tool: 'brush',
+                            color: this.currentColor,
+                            width: this.currentWidth,
+                            points: [...this.activeStrokePoints]
+                        });
+                    }
+                }
+                this.renderOverlay();
+            }
+        }, { passive: false });
+
+        this.viewport.addEventListener('touchmove', (e) => {
+            if (this.isPinching && e.touches.length >= 2) {
+                e.preventDefault();
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                const currDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                const currCenter = {
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
+                };
+                const scale = this.pinchStartDist > 0 ? (currDist / this.pinchStartDist) : 1;
+                const targetZoom = Math.min(Math.max(this.pinchStartZoom * scale, this.minZoom), this.maxZoom);
+
+                const rect = this.viewport.getBoundingClientRect();
+                const cx = this.pinchCenter.x - rect.left;
+                const cy = this.pinchCenter.y - rect.top;
+
+                const panDeltaX = currCenter.x - this.pinchCenter.x;
+                const panDeltaY = currCenter.y - this.pinchCenter.y;
+
+                this.panX = (cx - (cx - this.pinchStartPan.x) * (targetZoom / this.pinchStartZoom)) + panDeltaX;
+                this.panY = (cy - (cy - this.pinchStartPan.y) * (targetZoom / this.pinchStartZoom)) + panDeltaY;
+                this.zoom = targetZoom;
+
+                if (this.onZoomChange) this.onZoomChange(this.zoom);
+                if (this.onNeedsRedraw) this.onNeedsRedraw();
+                this.renderOverlay();
+                return;
+            }
+
+            if (this.isPinching) {
+                e.preventDefault();
+                return;
+            }
+
+            if (this.isPanning && e.touches.length >= 1) {
+                e.preventDefault();
+                this.panX = e.touches[0].clientX - this.panStartX;
+                this.panY = e.touches[0].clientY - this.panStartY;
+                if (this.onNeedsRedraw) this.onNeedsRedraw();
+                this.renderOverlay();
+                return;
+            }
+
+            if (this.isInteracting && e.touches.length >= 1) {
+                e.preventDefault();
+                const t = e.touches[0];
+                const world = this.screenToWorld(t.clientX, t.clientY);
+
+                if (this.onCursorMove) {
+                    this.onCursorMove(world.x, world.y);
+                }
+
+                if (this.currentTool === 'brush') {
+                    this.activeStrokePoints.push(world);
+                    if (this.onLiveStroke && this.activeStrokePoints.length % 2 === 0) {
+                        this.onLiveStroke({
+                            type: 'brush',
+                            tool: 'brush',
+                            color: this.currentColor,
+                            width: this.currentWidth,
+                            points: [...this.activeStrokePoints]
+                        });
+                    }
+                    this.renderOverlay();
+                } else if (this.currentTool === 'eraser') {
+                    this.activeStrokePoints.push(world);
+                    this._paintEraserSegment(this.lastEraserPoint || world, world);
+                    this.lastEraserPoint = world;
+                } else {
+                    this.activeStrokePoints = [this.activeShapeStart, world];
+                    this.renderOverlay();
+                }
+            }
+        }, { passive: false });
+
+        const endTouch = (e) => {
+            if (this.isPinching) {
+                if (e.touches.length < 2) {
+                    this.isPinching = false;
+                    this.isInteracting = false;
+                    this.activeStrokePoints = [];
+                    if (e.touches.length === 1) {
+                        this.isPanning = !this.canDraw || this.currentTool === 'pan';
+                        if (this.isPanning) {
+                            this.panStartX = e.touches[0].clientX - this.panX;
+                            this.panStartY = e.touches[0].clientY - this.panY;
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (this.isPanning) {
+                if (e.touches.length === 0) {
+                    this.isPanning = false;
+                }
+                return;
+            }
+
+            if (!this.isInteracting) return;
+            this.isInteracting = false;
+
+            const world = this.activeStrokePoints.length > 0 ? this.activeStrokePoints[this.activeStrokePoints.length - 1] : null;
+            if (!world) return;
+
+            let operation = null;
+            const opId = `op_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+            if (this.currentTool === 'brush' || this.currentTool === 'eraser') {
+                if (this.activeStrokePoints.length > 0) {
+                    operation = {
+                        id: opId,
+                        type: this.currentTool,
+                        color: this.currentColor,
+                        width: this.currentWidth,
+                        points: [...this.activeStrokePoints]
+                    };
+                }
+            } else if (['rectangle', 'circle', 'line'].includes(this.currentTool)) {
+                if (this.activeShapeStart) {
+                    operation = {
+                        id: opId,
+                        type: this.currentTool,
+                        color: this.currentColor,
+                        width: this.currentWidth,
+                        fill: this.isFillEnabled,
+                        x0: this.activeShapeStart.x,
+                        y0: this.activeShapeStart.y,
+                        x1: world.x,
+                        y1: world.y
+                    };
+                }
+            }
+
+            this.activeStrokePoints = [];
+            this.activeShapeStart = null;
+            this.lastEraserPoint = null;
+            this.renderOverlay();
+
+            if (operation && this.onCommitOperation) {
+                this.onCommitOperation(operation);
+            }
+        };
+
+        this.viewport.addEventListener('touchend', endTouch, { passive: false });
+        this.viewport.addEventListener('touchcancel', endTouch, { passive: false });
+
+        // =========================================================================
+        // 2. Mouse & Stylus Pointer Events (Desktop / Non-Touch)
+        // =========================================================================
+        this.viewport.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') return; // Handled exclusively by Touch Events
+
+            if (e.button === 1 || this.currentTool === 'pan' || !this.canDraw || e.spaceKey) {
                 this.isPanning = true;
                 this.panStartX = e.clientX - this.panX;
                 this.panStartY = e.clientY - this.panY;
@@ -183,7 +410,7 @@ class CanvasEngine {
                 return;
             }
 
-            if (e.button !== 0) return; // Only primary button draws
+            if (e.button !== 0) return;
 
             try {
                 if (e.pointerId !== undefined) {
@@ -213,7 +440,6 @@ class CanvasEngine {
             }
 
             if (this.currentTool === 'eraser') {
-                // Paint initial erase dot directly on drawing canvas
                 this.lastEraserPoint = world;
                 this._paintEraserSegment(world, world);
             } else if (this.currentTool === 'brush') {
@@ -230,43 +456,8 @@ class CanvasEngine {
             this.renderOverlay();
         });
 
-        // Pointer move
         this.viewport.addEventListener('pointermove', (e) => {
-            if (e.pointerId !== undefined && this.activePointers.has(e.pointerId)) {
-                this.activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-            }
-
-            // Handle multi-pointer pinch zoom and pan
-            if (this.isPinching && this.activePointers.size >= 2) {
-                const pts = Array.from(this.activePointers.values());
-                const p1 = pts[0];
-                const p2 = pts[1];
-                const currDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
-                const currCenter = {
-                    x: (p1.clientX + p2.clientX) / 2,
-                    y: (p1.clientY + p2.clientY) / 2
-                };
-                const scale = this.pinchStartDist > 0 ? (currDist / this.pinchStartDist) : 1;
-                const targetZoom = Math.min(Math.max(this.pinchStartZoom * scale, this.minZoom), this.maxZoom);
-
-                const rect = this.viewport.getBoundingClientRect();
-                const cx = this.pinchCenter.x - rect.left;
-                const cy = this.pinchCenter.y - rect.top;
-
-                const panDeltaX = currCenter.x - this.pinchCenter.x;
-                const panDeltaY = currCenter.y - this.pinchCenter.y;
-
-                this.panX = (cx - (cx - this.pinchStartPan.x) * (targetZoom / this.pinchStartZoom)) + panDeltaX;
-                this.panY = (cy - (cy - this.pinchStartPan.y) * (targetZoom / this.pinchStartZoom)) + panDeltaY;
-                this.zoom = targetZoom;
-
-                if (this.onZoomChange) this.onZoomChange(this.zoom);
-                if (this.onNeedsRedraw) this.onNeedsRedraw();
-                this.renderOverlay();
-                return;
-            }
-
-            if (this.isPinching) return;
+            if (e.pointerType === 'touch') return;
 
             if (this.isPanning) {
                 this.panX = e.clientX - this.panStartX;
@@ -286,7 +477,6 @@ class CanvasEngine {
 
             if (this.currentTool === 'brush') {
                 this.activeStrokePoints.push(world);
-                // Throttle live stroke updates to remote peers
                 if (this.onLiveStroke && this.activeStrokePoints.length % 2 === 0) {
                     this.onLiveStroke({
                         type: 'brush',
@@ -299,30 +489,16 @@ class CanvasEngine {
                 this.renderOverlay();
             } else if (this.currentTool === 'eraser') {
                 this.activeStrokePoints.push(world);
-                // Paint ONLY the new segment — O(1), no full redraw
                 this._paintEraserSegment(this.lastEraserPoint || world, world);
                 this.lastEraserPoint = world;
             } else {
-                // Shapes: activeShapeStart is origin, world is current end
                 this.activeStrokePoints = [this.activeShapeStart, world];
                 this.renderOverlay();
             }
         });
 
-        // Pointer up / cancel
-        const endInteraction = (e) => {
-            if (e && e.pointerId !== undefined) {
-                this.activePointers.delete(e.pointerId);
-            }
-
-            if (this.isPinching) {
-                if (this.activePointers.size < 2) {
-                    this.isPinching = false;
-                    this.isInteracting = false;
-                    this.activeStrokePoints = [];
-                }
-                return;
-            }
+        const endPointerInteraction = (e) => {
+            if (e && e.pointerType === 'touch') return;
 
             if (this.isPanning) {
                 this.isPanning = false;
@@ -380,68 +556,12 @@ class CanvasEngine {
             }
         };
 
-        window.addEventListener('pointerup', endInteraction);
-        window.addEventListener('pointercancel', endInteraction);
+        window.addEventListener('pointerup', endPointerInteraction);
+        window.addEventListener('pointercancel', endPointerInteraction);
 
-        // Touch event fallback for pinch-to-zoom on mobile browsers
-        this.viewport.addEventListener('touchstart', (e) => {
-            if (e.touches.length >= 2) {
-                e.preventDefault();
-                this.isInteracting = false;
-                this.activeStrokePoints = [];
-                const t1 = e.touches[0];
-                const t2 = e.touches[1];
-                this.pinchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-                this.pinchStartZoom = this.zoom;
-                this.pinchCenter = {
-                    x: (t1.clientX + t2.clientX) / 2,
-                    y: (t1.clientY + t2.clientY) / 2
-                };
-                this.pinchStartPan = { x: this.panX, y: this.panY };
-                this.isPinching = true;
-                this.renderOverlay();
-            }
-        }, { passive: false });
-
-        this.viewport.addEventListener('touchmove', (e) => {
-            if (e.touches.length >= 2) {
-                e.preventDefault();
-                const t1 = e.touches[0];
-                const t2 = e.touches[1];
-                const currDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-                const currCenter = {
-                    x: (t1.clientX + t2.clientX) / 2,
-                    y: (t1.clientY + t2.clientY) / 2
-                };
-                const scale = this.pinchStartDist > 0 ? (currDist / this.pinchStartDist) : 1;
-                const targetZoom = Math.min(Math.max(this.pinchStartZoom * scale, this.minZoom), this.maxZoom);
-
-                const rect = this.viewport.getBoundingClientRect();
-                const cx = this.pinchCenter.x - rect.left;
-                const cy = this.pinchCenter.y - rect.top;
-
-                const panDeltaX = currCenter.x - this.pinchCenter.x;
-                const panDeltaY = currCenter.y - this.pinchCenter.y;
-
-                this.panX = (cx - (cx - this.pinchStartPan.x) * (targetZoom / this.pinchStartZoom)) + panDeltaX;
-                this.panY = (cy - (cy - this.pinchStartPan.y) * (targetZoom / this.pinchStartZoom)) + panDeltaY;
-                this.zoom = targetZoom;
-
-                if (this.onZoomChange) this.onZoomChange(this.zoom);
-                if (this.onNeedsRedraw) this.onNeedsRedraw();
-                this.renderOverlay();
-            }
-        }, { passive: false });
-
-        this.viewport.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2 && this.isPinching) {
-                this.isPinching = false;
-                this.isInteracting = false;
-                this.activeStrokePoints = [];
-            }
-        }, { passive: false });
-
-        // Mouse Wheel Zooming
+        // =========================================================================
+        // 3. Mouse Wheel & Trackpad Pinch Zooming
+        // =========================================================================
         this.viewport.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomDelta = e.deltaY < 0 ? 1.1 : 0.9;
