@@ -1,8 +1,8 @@
 {
-  "name": "collaborative-drawing-canvas",
+  "name": "scribble-multiplayer-game",
   "version": "2.0.0",
   "type": "commonjs",
-  "description": "Production-ready, low-latency collaborative whiteboarding platform with stroke-level event sourcing, per-user undo/redo, and multi-room isolation",
+  "description": "Real-time multiplayer drawing & guessing game with collaborative canvas, custom timers, live chat & guessing, speed scoring, mobile gesture support, and session reconnection score recovery",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",

@@ -1,12 +1,12 @@
 # System Architecture & Technical Deep Dive
 
-This document details the architectural design decisions, mathematical models, data structures, and synchronization protocols implemented in **CanvasCollab**.
+This document details the architectural design decisions, mathematical models, data structures, and synchronization protocols implemented in **Scribble**.
 
 ---
 
 ## 1. High-Level Architectural Model
 
-CanvasCollab employs an **Event-Sourced, Server-Mediated Client-Server Architecture** over full-duplex WebSockets.
+Scribble employs an **Event-Sourced, Server-Mediated Client-Server Architecture** over full-duplex WebSockets.
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -56,7 +56,7 @@ In naive canvas implementations, every mouse movement triggers a `(x0, y0) -> (x
 3. Renders undo meaningless, because `undo` only removes a 2-pixel segment.
 
 ### 2.2 Discrete Operation Lifecycle
-CanvasCollab introduces a two-phase stroke protocol:
+Scribble introduces a two-phase stroke protocol:
 
 1. **In-Flight Phase (`stroke:live`)**:
    - While the pointer is moving (`pointermove`), sampled points are accumulated locally in `activeStrokePoints`.
@@ -85,7 +85,7 @@ CanvasCollab introduces a two-phase stroke protocol:
 ### 3.1 Tombstone Pattern
 Standard stack-based undo/redo (`pop()` and `push()`) fails in multi-user environments because popping removes the most recent global action, irrespective of who created it.
 
-CanvasCollab utilizes **tombstones (soft-deletes)** coupled with isolated per-user undo stacks:
+Scribble utilizes **tombstones (soft-deletes)** coupled with isolated per-user undo stacks:
 
 ```
 Operations Timeline:
@@ -147,7 +147,7 @@ $$\begin{aligned}
 
 ## 5. Bézier Curve Smoothing Algorithm
 
-Raw mouse sampling generates jagged polyline strokes. CanvasCollab applies midpoint quadratic Bézier curve interpolation:
+Raw mouse sampling generates jagged polyline strokes. Scribble applies midpoint quadratic Bézier curve interpolation:
 
 Given sequential points $P_0, P_1, P_2, \dots, P_n$:
 For each adjacent pair $(P_i, P_{i+1})$, compute midpoint:
