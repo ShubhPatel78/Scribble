@@ -123,8 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateUndoRedoState() {
         const hasMyActiveOps = operations.some(op => op.userId === currentUserId && !op.undone);
-        undoBtn.disabled = !hasMyActiveOps;
-        redoBtn.disabled = myUndoneCount === 0;
+        if (undoBtn) undoBtn.disabled = !hasMyActiveOps;
+        if (redoBtn) redoBtn.disabled = myUndoneCount === 0;
     }
 
     function refreshCanvas() {
@@ -138,12 +138,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3. Setup WebSocket Callbacks
     client.onConnectionChange = (connected) => {
-        if (connected) {
-            connectionBadge.className = 'connection-badge connected';
-            connectionText.textContent = 'Connected';
-        } else {
-            connectionBadge.className = 'connection-badge disconnected';
-            connectionText.textContent = 'Reconnecting...';
+        if (connectionBadge) {
+            connectionBadge.className = connected ? 'connection-badge connected' : 'connection-badge disconnected';
+        }
+        if (connectionText) {
+            connectionText.textContent = connected ? 'Connected' : 'Reconnecting...';
         }
     };
 
@@ -151,12 +150,14 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUserId = data.clientId;
         client.color = data.color;
         engine.currentColor = data.color;
-        primaryColorPicker.value = data.color;
+        if (primaryColorPicker) primaryColorPicker.value = data.color;
 
-        selfAvatar.style.backgroundColor = data.color;
-        selfAvatar.textContent = (data.username || 'U')[0].toUpperCase();
-        selfName.textContent = `${data.username} (You)`;
-        roomBadge.textContent = data.roomId;
+        if (selfAvatar) {
+            selfAvatar.style.backgroundColor = data.color;
+            selfAvatar.textContent = (data.username || 'U')[0].toUpperCase();
+        }
+        if (selfName) selfName.textContent = `${data.username} (You)`;
+        if (roomBadge) roomBadge.textContent = data.roomId;
 
         // Restore snapshot
         operations = (data.snapshot && data.snapshot.operations) ? [...data.snapshot.operations] : [];
@@ -242,24 +243,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function updateUserPresence(users = []) {
-        avatarStack.innerHTML = '';
-        usersCountBadge.textContent = `${users.length} online`;
+        if (avatarStack) {
+            avatarStack.innerHTML = '';
+            users.slice(0, 5).forEach(u => {
+                const circle = document.createElement('span');
+                circle.className = 'user-circle';
+                circle.style.backgroundColor = u.color || '#3B82F6';
+                circle.title = u.username || 'User';
+                circle.textContent = (u.username || 'U')[0].toUpperCase();
+                avatarStack.appendChild(circle);
+            });
 
-        users.slice(0, 5).forEach(u => {
-            const circle = document.createElement('span');
-            circle.className = 'user-circle';
-            circle.style.backgroundColor = u.color || '#3B82F6';
-            circle.title = u.username || 'User';
-            circle.textContent = (u.username || 'U')[0].toUpperCase();
-            avatarStack.appendChild(circle);
-        });
-
-        if (users.length > 5) {
-            const more = document.createElement('span');
-            more.className = 'user-circle';
-            more.style.backgroundColor = '#64748B';
-            more.textContent = `+${users.length - 5}`;
-            avatarStack.appendChild(more);
+            if (users.length > 5) {
+                const more = document.createElement('span');
+                more.className = 'user-circle';
+                more.style.backgroundColor = '#64748B';
+                more.textContent = `+${users.length - 5}`;
+                avatarStack.appendChild(more);
+            }
+        }
+        if (usersCountBadge) {
+            usersCountBadge.textContent = `${users.length} online`;
         }
     }
 
@@ -297,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     engine.onZoomChange = (zoom) => {
-        zoomLevelText.textContent = `${Math.round(zoom * 100)}%`;
+        if (zoomLevelText) zoomLevelText.textContent = `${Math.round(zoom * 100)}%`;
         updateEraserCursorSize();
     };
 
@@ -319,16 +323,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tool === 'eraser') {
                 viewport.classList.add('eraser-active');
                 updateEraserCursorSize();
-                eraserCursor.classList.remove('hidden');
+                if (eraserCursor) eraserCursor.classList.remove('hidden');
             } else {
                 viewport.classList.remove('eraser-active');
-                eraserCursor.classList.add('hidden');
+                if (eraserCursor) eraserCursor.classList.add('hidden');
             }
         });
     });
 
     viewport.addEventListener('pointermove', (e) => {
-        if (engine.currentTool === 'eraser') {
+        if (engine.currentTool === 'eraser' && eraserCursor) {
             eraserCursor.style.left = `${e.clientX}px`;
             eraserCursor.style.top = `${e.clientY}px`;
             eraserCursor.classList.remove('hidden');
@@ -336,15 +340,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     viewport.addEventListener('pointerleave', () => {
-        if (engine.currentTool === 'eraser') {
+        if (engine.currentTool === 'eraser' && eraserCursor) {
             eraserCursor.classList.add('hidden');
         }
     });
 
-    primaryColorPicker.addEventListener('input', (e) => {
-        engine.currentColor = e.target.value;
-        colorDots.forEach(d => d.classList.remove('active'));
-    });
+    if (primaryColorPicker) {
+        primaryColorPicker.addEventListener('input', (e) => {
+            engine.currentColor = e.target.value;
+            colorDots.forEach(d => d.classList.remove('active'));
+        });
+    }
 
     colorDots.forEach(dot => {
         dot.addEventListener('click', () => {
@@ -352,32 +358,35 @@ document.addEventListener('DOMContentLoaded', () => {
             dot.classList.add('active');
             const color = dot.dataset.color;
             engine.currentColor = color;
-            primaryColorPicker.value = color;
+            if (primaryColorPicker) primaryColorPicker.value = color;
         });
     });
 
     function updateSizeUI(val) {
         engine.currentWidth = val;
-        sizeLabel.textContent = `${val}px`;
-        // Scale preview dot: clamp between 4px and 36px visually
-        const dotSize = Math.min(4 + val * 0.5, 36);
-        sizePreviewDot.style.width = `${dotSize}px`;
-        sizePreviewDot.style.height = `${dotSize}px`;
+        if (sizeLabel) sizeLabel.textContent = `${val}px`;
+        if (sizePreviewDot) {
+            const dotSize = Math.min(4 + val * 0.5, 36);
+            sizePreviewDot.style.width = `${dotSize}px`;
+            sizePreviewDot.style.height = `${dotSize}px`;
+        }
         updateEraserCursorSize();
     }
 
-    strokeSizeSlider.addEventListener('input', () => {
+    if (strokeSizeSlider) {
+        strokeSizeSlider.addEventListener('input', () => {
+            updateSizeUI(parseInt(strokeSizeSlider.value, 10));
+        });
         updateSizeUI(parseInt(strokeSizeSlider.value, 10));
-    });
+    }
 
-    // Init dot on load
-    updateSizeUI(parseInt(strokeSizeSlider.value, 10));
-
-    toggleFillBtn.addEventListener('click', () => {
-        engine.isFillEnabled = !engine.isFillEnabled;
-        toggleFillBtn.classList.toggle('active', engine.isFillEnabled);
-        fillStatusText.textContent = engine.isFillEnabled ? 'On' : 'Off';
-    });
+    if (toggleFillBtn) {
+        toggleFillBtn.addEventListener('click', () => {
+            engine.isFillEnabled = !engine.isFillEnabled;
+            toggleFillBtn.classList.toggle('active', engine.isFillEnabled);
+            if (fillStatusText) fillStatusText.textContent = engine.isFillEnabled ? 'On' : 'Off';
+        });
+    }
 
     // Theme Switcher Management
     const THEME_DATA = {
@@ -429,152 +438,158 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    undoBtn.addEventListener('click', () => client.sendUndo());
-    redoBtn.addEventListener('click', () => client.sendRedo());
+    if (undoBtn) undoBtn.addEventListener('click', () => client.sendUndo());
+    if (redoBtn) redoBtn.addEventListener('click', () => client.sendRedo());
 
-    zoomInBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 1.2));
-    zoomOutBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 0.8));
-    resetViewBtn.addEventListener('click', () => engine.resetView());
+    if (zoomInBtn) zoomInBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 1.2));
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 0.8));
+    if (resetViewBtn) resetViewBtn.addEventListener('click', () => engine.resetView());
 
-    exportPngBtn.addEventListener('click', () => {
-        const dataUrl = engine.exportPNG();
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = `canvascollab-${client.roomId}-${Date.now()}.png`;
-        a.click();
-        showToast('📸 Canvas exported as PNG');
-    });
+    if (exportPngBtn) {
+        exportPngBtn.addEventListener('click', () => {
+            const dataUrl = engine.exportPNG();
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = `scribble-${client.roomId}-${Date.now()}.png`;
+            a.click();
+            showToast('📸 Canvas exported as PNG');
+        });
+    }
 
-    exportJsonBtn.addEventListener('click', () => {
-        const json = JSON.stringify({
-            roomId: client.roomId,
-            timestamp: Date.now(),
-            operations: operations.filter(o => !o.undone)
-        }, null, 2);
+    if (exportJsonBtn) {
+        exportJsonBtn.addEventListener('click', () => {
+            const json = JSON.stringify({
+                roomId: client.roomId,
+                timestamp: Date.now(),
+                operations: operations.filter(o => !o.undone)
+            }, null, 2);
 
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `canvascollab-${client.roomId}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('💾 State exported as JSON');
-    });
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `scribble-${client.roomId}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('💾 State exported as JSON');
+        });
+    }
 
-    clearBoardBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear the canvas for all users in this room?')) {
-            client.sendClear();
-        }
-    });
+    if (clearBoardBtn) {
+        clearBoardBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the canvas for all users in this room?')) {
+                client.sendClear();
+            }
+        });
+    }
 
     // 6. Room Sharing: Code & Link
-    copyCodeBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(client.roomId).then(() => {
-            showToast(`📋 Room code "${client.roomId}" copied!`);
-        }).catch(() => {
-            prompt('Copy Room Code:', client.roomId);
+    if (copyCodeBtn) {
+        copyCodeBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(client.roomId).then(() => {
+                showToast(`📋 Room code "${client.roomId}" copied!`);
+            }).catch(() => {
+                prompt('Copy Room Code:', client.roomId);
+            });
         });
-    });
+    }
 
-    copyRoomBtn.addEventListener('click', () => {
-        const roomUrl = `${window.location.origin}/?room=${encodeURIComponent(client.roomId)}`;
-        navigator.clipboard.writeText(roomUrl).then(() => {
-            showToast('🔗 Invite link copied to clipboard!');
-        }).catch(() => {
-            prompt('Copy link to room:', roomUrl);
+    if (copyRoomBtn) {
+        copyRoomBtn.addEventListener('click', () => {
+            const roomUrl = `${window.location.origin}/?room=${encodeURIComponent(client.roomId)}`;
+            navigator.clipboard.writeText(roomUrl).then(() => {
+                showToast('🔗 Invite link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy link to room:', roomUrl);
+            });
         });
-    });
+    }
 
     // 7. Modals: Create New Room & Join Room
-    newRoomBtn.addEventListener('click', () => {
-        newRoomUserInput.value = client.username || localStorage.getItem('canvas_username') || '';
-        newRoomModal.classList.remove('hidden');
-    });
+    if (newRoomBtn) {
+        newRoomBtn.addEventListener('click', () => {
+            if (newRoomUserInput) newRoomUserInput.value = client.username || localStorage.getItem('canvas_username') || '';
+            if (newRoomModal) newRoomModal.classList.remove('hidden');
+        });
+    }
 
-    newRoomCancelBtn.addEventListener('click', () => {
-        newRoomModal.classList.add('hidden');
-    });
+    if (newRoomCancelBtn) {
+        newRoomCancelBtn.addEventListener('click', () => {
+            if (newRoomModal) newRoomModal.classList.add('hidden');
+        });
+    }
 
-    newRoomForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const customName = newRoomNameInput.value.trim() || 'Untitled Canvas';
-        const chosenUser = newRoomUserInput.value.trim();
+    if (newRoomForm) {
+        newRoomForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const customName = (newRoomNameInput?.value || '').trim() || 'Untitled Canvas';
+            const chosenUser = (newRoomUserInput?.value || '').trim();
 
-        if (chosenUser) {
-            localStorage.setItem('canvas_username', chosenUser);
-        }
-
-        try {
-            const res = await fetch('/api/rooms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: customName })
-            });
-            const data = await res.json();
-
-            if (data.success && data.code) {
-                newRoomModal.classList.add('hidden');
-                client.joinRoom(data.code, chosenUser);
-                roomBadge.textContent = data.code;
-
-                const newUrl = `${window.location.pathname}?room=${encodeURIComponent(data.code)}`;
-                window.history.pushState({ room: data.code }, '', newUrl);
-
-                showToast(`🎉 Room created! Code: ${data.code}`);
+            if (chosenUser) {
+                localStorage.setItem('canvas_username', chosenUser);
             }
-        } catch (err) {
-            console.error('Failed creating room via API:', err);
-            // Fallback in case of offline
-            const fallbackCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            client.joinRoom(fallbackCode, chosenUser);
-            roomBadge.textContent = fallbackCode;
-            newRoomModal.classList.add('hidden');
-            showToast(`Room created: ${fallbackCode}`);
-        }
-    });
 
-    joinRoomBtn.addEventListener('click', () => {
-        joinCodeInput.value = '';
-        joinUsernameInput.value = client.username || localStorage.getItem('canvas_username') || '';
-        joinRoomModal.classList.remove('hidden');
-    });
+            try {
+                const res = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: customName })
+                });
+                const data = await res.json();
 
-    joinCancelBtn.addEventListener('click', () => {
-        joinRoomModal.classList.add('hidden');
-    });
-
-    joinRoomForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        let rawInput = joinCodeInput.value.trim();
-        const chosenUser = joinUsernameInput.value.trim();
-
-        if (!rawInput) return;
-
-        // If user pasted a full URL, extract ?room= or /room/
-        let targetCode = rawInput;
-        try {
-            if (rawInput.includes('://') || rawInput.includes('?room=') || rawInput.includes('/room/')) {
-                const parsed = new URL(rawInput, window.location.origin);
-                targetCode = parsed.searchParams.get('room') || parsed.pathname.replace('/room/', '') || rawInput;
+                if (data.success && data.code) {
+                    if (newRoomModal) newRoomModal.classList.add('hidden');
+                    window.location.href = `/?room=${encodeURIComponent(data.code)}${chosenUser ? `&username=${encodeURIComponent(chosenUser)}` : ''}`;
+                }
+            } catch (err) {
+                console.error('Failed creating room via API:', err);
+                const fallbackCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                window.location.href = `/?room=${encodeURIComponent(fallbackCode)}${chosenUser ? `&username=${encodeURIComponent(chosenUser)}` : ''}`;
             }
-        } catch (_) {}
+        });
+    }
 
-        targetCode = targetCode.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+    if (joinRoomBtn) {
+        joinRoomBtn.addEventListener('click', () => {
+            if (joinCodeInput) joinCodeInput.value = '';
+            if (joinUsernameInput) joinUsernameInput.value = client.username || localStorage.getItem('canvas_username') || '';
+            if (joinRoomModal) joinRoomModal.classList.remove('hidden');
+        });
+    }
 
-        if (chosenUser) {
-            localStorage.setItem('canvas_username', chosenUser);
-        }
+    if (joinCancelBtn) {
+        joinCancelBtn.addEventListener('click', () => {
+            if (joinRoomModal) joinRoomModal.classList.add('hidden');
+        });
+    }
 
-        client.joinRoom(targetCode, chosenUser);
-        roomBadge.textContent = targetCode;
+    if (joinRoomForm) {
+        joinRoomForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            let rawInput = (joinCodeInput?.value || '').trim();
+            const chosenUser = (joinUsernameInput?.value || '').trim();
 
-        const newUrl = `${window.location.pathname}?room=${encodeURIComponent(targetCode)}`;
-        window.history.pushState({ room: targetCode }, '', newUrl);
+            if (!rawInput) return;
 
-        joinRoomModal.classList.add('hidden');
-        showToast(`🚪 Switched to room ${targetCode}`);
-    });
+            // If user pasted a full URL, extract ?room= or /room/
+            let targetCode = rawInput;
+            try {
+                if (rawInput.includes('://') || rawInput.includes('?room=') || rawInput.includes('/room/')) {
+                    const parsed = new URL(rawInput, window.location.origin);
+                    targetCode = parsed.searchParams.get('room') || parsed.pathname.replace('/room/', '') || rawInput;
+                }
+            } catch (_) {}
+
+            targetCode = targetCode.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+
+            if (chosenUser) {
+                localStorage.setItem('canvas_username', chosenUser);
+            }
+
+            if (joinRoomModal) joinRoomModal.classList.add('hidden');
+            window.location.href = `/?room=${encodeURIComponent(targetCode)}${chosenUser ? `&username=${encodeURIComponent(chosenUser)}` : ''}`;
+        });
+    }
 
     // 8. Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
