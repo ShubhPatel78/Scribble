@@ -551,10 +551,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const activeColorPreview = document.getElementById('active-color-preview');
+    const sizeDotBtns = document.querySelectorAll('.size-dot-btn');
+
+    function updateActiveColor(color) {
+        engine.currentColor = color;
+        if (activeColorPreview) {
+            activeColorPreview.style.backgroundColor = color;
+        }
+        if (primaryColorPicker) {
+            primaryColorPicker.value = color;
+        }
+    }
+
     if (primaryColorPicker) {
         primaryColorPicker.addEventListener('input', (e) => {
-            engine.currentColor = e.target.value;
-            colorDots.forEach(d => d.classList.remove('active'));
+            const color = e.target.value;
+            updateActiveColor(color);
+            colorDots.forEach(d => d.classList.toggle('active', d.dataset.color?.toLowerCase() === color.toLowerCase()));
         });
     }
 
@@ -563,21 +577,31 @@ document.addEventListener('DOMContentLoaded', () => {
             colorDots.forEach(d => d.classList.remove('active'));
             dot.classList.add('active');
             const color = dot.dataset.color;
-            engine.currentColor = color;
-            if (primaryColorPicker) primaryColorPicker.value = color;
+            updateActiveColor(color);
         });
     });
 
     function updateSizeUI(val) {
         engine.currentWidth = val;
         if (sizeLabel) sizeLabel.textContent = `${val}px`;
+        if (strokeSizeSlider) strokeSizeSlider.value = val;
         if (sizePreviewDot) {
             const dotSize = Math.min(4 + val * 0.5, 36);
             sizePreviewDot.style.width = `${dotSize}px`;
             sizePreviewDot.style.height = `${dotSize}px`;
         }
+        sizeDotBtns.forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.size, 10) === val);
+        });
         updateEraserCursorSize();
     }
+
+    sizeDotBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const size = parseInt(btn.dataset.size, 10);
+            updateSizeUI(size);
+        });
+    });
 
     if (strokeSizeSlider) {
         strokeSizeSlider.addEventListener('input', () => {
@@ -585,6 +609,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         updateSizeUI(parseInt(strokeSizeSlider.value, 10));
     }
+
+    // Set initial active color to black
+    updateActiveColor('#000000');
 
     if (toggleFillBtn) {
         toggleFillBtn.addEventListener('click', () => {

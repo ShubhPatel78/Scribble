@@ -10,7 +10,7 @@
     <title>Scribble • Multiplayer Drawing & Guessing Game</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,8 +18,9 @@
     <header class="top-nav game-top-nav">
         <div class="nav-left">
             <div class="brand">
-                <span class="brand-icon">🎨</span>
-                <span class="brand-name">Scribble</span>
+                <span class="brand-logo-skribbl">
+                    <span class="logo-l1">S</span><span class="logo-l2">c</span><span class="logo-l3">r</span><span class="logo-l4">i</span><span class="logo-l5">b</span><span class="logo-l6">b</span><span class="logo-l7">l</span><span class="logo-l8">e</span>
+                </span>
             </div>
 
             <!-- Game Round & Timer -->
@@ -202,18 +203,10 @@
 
             <!-- Floating Drawing Toolbar (Drawer controls) -->
             <nav class="floating-toolbar game-toolbar">
-                <div class="tool-group">
+                <!-- Drawing & Utility Tools -->
+                <div class="tool-group tools-primary-group">
                     <button class="tool-btn active" data-tool="brush" title="Pen / Brush (P)">
                         ✏️
-                    </button>
-                    <button class="tool-btn" data-tool="line" title="Line (L)">
-                        📏
-                    </button>
-                    <button class="tool-btn" data-tool="rectangle" title="Rectangle (R)">
-                        ⬜
-                    </button>
-                    <button class="tool-btn" data-tool="circle" title="Circle (O)">
-                        ⭕
                     </button>
                     <button class="tool-btn" data-tool="fill-bucket" title="Paint Bucket / Flood Fill (F)">
                         🪣
@@ -225,6 +218,15 @@
                             <path d="m5 11 9 9"/>
                         </svg>
                     </button>
+                    <button class="tool-btn" data-tool="line" title="Line (L)">
+                        📏
+                    </button>
+                    <button class="tool-btn" data-tool="rectangle" title="Rectangle (R)">
+                        ⬜
+                    </button>
+                    <button class="tool-btn" data-tool="circle" title="Circle (O)">
+                        ⭕
+                    </button>
                     <button class="tool-btn" data-tool="pan" title="Pan Hand Tool (H or hold Space)">
                         ✋
                     </button>
@@ -232,34 +234,63 @@
 
                 <div class="toolbar-divider"></div>
 
-                <!-- Color Palette -->
-                <div class="tool-group">
-                    <div class="color-picker-wrapper">
-                        <input type="color" id="primary-color-picker" value="#1e293b" title="Custom color">
+                <!-- Skribbl 2-Row Color Palette -->
+                <div class="tool-group skribbl-colors-container">
+                    <div class="active-color-preview-box" id="active-color-preview" style="background-color: #000000;" title="Click for custom color">
+                        <input type="color" id="primary-color-picker" value="#000000" title="Custom color picker">
                     </div>
-                    <div class="preset-colors">
-                        <button class="color-dot active" style="background: #1e293b" data-color="#1e293b" title="Black/Slate"></button>
-                        <button class="color-dot" style="background: #ef4444" data-color="#ef4444" title="Red"></button>
-                        <button class="color-dot" style="background: #f97316" data-color="#f97316" title="Orange"></button>
-                        <button class="color-dot" style="background: #f59e0b" data-color="#f59e0b" title="Yellow"></button>
-                        <button class="color-dot" style="background: #10b981" data-color="#10b981" title="Green"></button>
-                        <button class="color-dot" style="background: #06b6d4" data-color="#06b6d4" title="Cyan"></button>
-                        <button class="color-dot" style="background: #3b82f6" data-color="#3b82f6" title="Blue"></button>
-                        <button class="color-dot" style="background: #8b5cf6" data-color="#8b5cf6" title="Purple"></button>
-                        <button class="color-dot" style="background: #ec4899" data-color="#ec4899" title="Pink"></button>
-                        <button class="color-dot" style="background: #78350f" data-color="#78350f" title="Brown"></button>
-                        <button class="color-dot" style="background: #ffffff" data-color="#ffffff" title="White"></button>
+                    <div class="color-palette-grid">
+                        <div class="color-palette-row">
+                            <button type="button" class="color-dot" style="background: #ffffff;" data-color="#ffffff" title="White"></button>
+                            <button type="button" class="color-dot" style="background: #c1c1c1;" data-color="#c1c1c1" title="Light Grey"></button>
+                            <button type="button" class="color-dot" style="background: #ef130b;" data-color="#ef130b" title="Red"></button>
+                            <button type="button" class="color-dot" style="background: #ff7100;" data-color="#ff7100" title="Orange"></button>
+                            <button type="button" class="color-dot" style="background: #ffe400;" data-color="#ffe400" title="Yellow"></button>
+                            <button type="button" class="color-dot" style="background: #00cc00;" data-color="#00cc00" title="Light Green"></button>
+                            <button type="button" class="color-dot" style="background: #00b2ff;" data-color="#00b2ff" title="Light Blue"></button>
+                            <button type="button" class="color-dot" style="background: #231fd3;" data-color="#231fd3" title="Dark Blue"></button>
+                            <button type="button" class="color-dot" style="background: #a300ba;" data-color="#a300ba" title="Purple"></button>
+                            <button type="button" class="color-dot" style="background: #df69a7;" data-color="#df69a7" title="Pink"></button>
+                            <button type="button" class="color-dot" style="background: #ffac91;" data-color="#ffac91" title="Peach"></button>
+                            <button type="button" class="color-dot" style="background: #a0522d;" data-color="#a0522d" title="Brown"></button>
+                        </div>
+                        <div class="color-palette-row">
+                            <button type="button" class="color-dot active" style="background: #000000;" data-color="#000000" title="Black"></button>
+                            <button type="button" class="color-dot" style="background: #4c4c4c;" data-color="#4c4c4c" title="Dark Grey"></button>
+                            <button type="button" class="color-dot" style="background: #740b07;" data-color="#740b07" title="Dark Red"></button>
+                            <button type="button" class="color-dot" style="background: #c23800;" data-color="#c23800" title="Dark Orange"></button>
+                            <button type="button" class="color-dot" style="background: #e8a200;" data-color="#e8a200" title="Dark Yellow"></button>
+                            <button type="button" class="color-dot" style="background: #005510;" data-color="#005510" title="Dark Green"></button>
+                            <button type="button" class="color-dot" style="background: #00569e;" data-color="#00569e" title="Blue"></button>
+                            <button type="button" class="color-dot" style="background: #0e0865;" data-color="#0e0865" title="Navy"></button>
+                            <button type="button" class="color-dot" style="background: #550069;" data-color="#550069" title="Dark Purple"></button>
+                            <button type="button" class="color-dot" style="background: #a75574;" data-color="#a75574" title="Mauve"></button>
+                            <button type="button" class="color-dot" style="background: #ecbcb4;" data-color="#ecbcb4" title="Tan"></button>
+                            <button type="button" class="color-dot" style="background: #63300d;" data-color="#63300d" title="Dark Brown"></button>
+                        </div>
                     </div>
                 </div>
 
                 <div class="toolbar-divider"></div>
 
-                <!-- Stroke Size Slider -->
-                <div class="tool-group size-slider-group">
-                    <div class="size-preview-dot" id="size-preview-dot"></div>
-                    <input type="range" id="stroke-size-slider" class="stroke-slider"
-                           min="1" max="80" value="4" title="Brush / Eraser Size">
-                    <span class="size-label" id="size-label">4px</span>
+                <!-- Skribbl 4 Brush Size Dots -->
+                <div class="tool-group skribbl-sizes-group">
+                    <button type="button" class="size-dot-btn active" data-size="4" title="Small Brush (4px)">
+                        <span class="size-dot-inner" style="width: 6px; height: 6px;"></span>
+                    </button>
+                    <button type="button" class="size-dot-btn" data-size="10" title="Medium Brush (10px)">
+                        <span class="size-dot-inner" style="width: 12px; height: 12px;"></span>
+                    </button>
+                    <button type="button" class="size-dot-btn" data-size="20" title="Large Brush (20px)">
+                        <span class="size-dot-inner" style="width: 18px; height: 18px;"></span>
+                    </button>
+                    <button type="button" class="size-dot-btn" data-size="40" title="Extra Large Brush (40px)">
+                        <span class="size-dot-inner" style="width: 26px; height: 26px;"></span>
+                    </button>
+                    <!-- Fallback slider & indicator for internal consistency -->
+                    <input type="range" id="stroke-size-slider" class="stroke-slider hidden-accessible" min="1" max="80" value="4">
+                    <span class="size-label hidden" id="size-label">4px</span>
+                    <div class="size-preview-dot hidden" id="size-preview-dot"></div>
                 </div>
 
                 <div class="toolbar-divider"></div>
@@ -321,9 +352,10 @@
         <div class="login-portal-card">
             <!-- Brand Header -->
             <div class="login-portal-header">
-                <div class="portal-logo">
-                    <span class="portal-logo-icon">🎨</span>
-                    <h1>Scribble</h1>
+                <div class="portal-logo skribbl-logo-hero">
+                    <span class="brand-logo-skribbl large">
+                        <span class="logo-l1">S</span><span class="logo-l2">c</span><span class="logo-l3">r</span><span class="logo-l4">i</span><span class="logo-l5">b</span><span class="logo-l6">b</span><span class="logo-l7">l</span><span class="logo-l8">e</span>
+                    </span>
                 </div>
                 <p class="portal-tagline">Multiplayer Drawing & Guessing Game</p>
             </div>
