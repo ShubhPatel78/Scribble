@@ -265,7 +265,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Engine Interaction Callbacks
     engine.onCommitOperation = (op) => {
-        client.commitOperation(op);
+        const opWithUser = {
+            ...op,
+            userId: currentUserId || client.clientId
+        };
+        const existingIdx = operations.findIndex(o => o.id === opWithUser.id);
+        if (existingIdx >= 0) {
+            operations[existingIdx] = opWithUser;
+        } else {
+            operations.push(opWithUser);
+        }
+        refreshCanvas();
+
+        client.commitOperation(opWithUser);
         myUndoneCount = 0;
     };
 

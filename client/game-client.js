@@ -24,6 +24,7 @@ class GameClient {
         // Cache DOM Elements
         this.initDOMElements();
         this.bindEvents();
+        this.updateDrawerPermissions();
     }
 
     initDOMElements() {
@@ -106,7 +107,7 @@ class GameClient {
         this.timeLeft = stateData.timeLeft || 0;
 
         const myId = this.client.clientId;
-        this.isDrawer = (this.drawerId === myId);
+        this.isDrawer = Boolean(this.drawerId && myId && this.drawerId === myId);
         const myPlayer = this.players.find(p => p.id === myId);
         this.isHost = myPlayer?.isHost || false;
 
