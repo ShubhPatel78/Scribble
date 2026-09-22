@@ -466,6 +466,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Engine Interaction Callbacks
     engine.onCommitOperation = (op) => {
+        if (!engine.canDraw) return; // Disallow non-drawers from committing operations
+
         const opWithUser = {
             ...op,
             userId: currentUserId || client.clientId
@@ -483,10 +485,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     engine.onLiveStroke = (strokeData) => {
+        if (!engine.canDraw) return;
         client.sendLiveStroke(strokeData);
     };
 
     engine.onCursorMove = (worldX, worldY) => {
+        if (!engine.canDraw) return;
         client.sendCursor(worldX, worldY);
     };
 
@@ -635,8 +639,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (undoBtn) undoBtn.addEventListener('click', () => client.sendUndo());
-    if (redoBtn) redoBtn.addEventListener('click', () => client.sendRedo());
+    if (undoBtn) undoBtn.addEventListener('click', () => {
+        if (engine.canDraw) client.sendUndo();
+    });
+    if (redoBtn) redoBtn.addEventListener('click', () => {
+        if (engine.canDraw) client.sendRedo();
+    });
 
     if (zoomInBtn) zoomInBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 1.2));
     if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 0.8));
@@ -675,6 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (clearBoardBtn) {
         clearBoardBtn.addEventListener('click', () => {
+            if (!engine.canDraw) return;
             if (confirm('Are you sure you want to clear the canvas for all users in this room?')) {
                 client.sendClear();
             }
@@ -795,15 +804,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
             e.preventDefault();
-            client.sendUndo();
+            if (engine.canDraw) client.sendUndo();
             return;
         }
 
         if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
             ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
             e.preventDefault();
-            client.sendRedo();
+            if (engine.canDraw) client.sendRedo();
             return;
+        }
+
+        if (['p', 'b', 'e', 'f', 'g', 'r', 'o', 'c', 'l'].includes(e.key.toLowerCase()) && !engine.canDraw) {
+            return; // Ignore drawing tool shortcuts when user is not the active drawer
         }
 
         switch (e.key.toLowerCase()) {

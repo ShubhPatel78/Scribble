@@ -316,6 +316,9 @@ wss.on('connection', async (ws, req) => {
                     if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
                         break;
                     }
+                    if (activeRoom.game.state !== 'LOBBY' && activeRoom.game.state !== 'DRAWING') {
+                        break;
+                    }
                     const undoneOp = activeRoom.state.undo(userId);
                     if (undoneOp) {
                         roomManager.broadcast(currentRoomId, {
@@ -330,6 +333,9 @@ wss.on('connection', async (ws, req) => {
 
                 case 'op:redo': {
                     if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
+                        break;
+                    }
+                    if (activeRoom.game.state !== 'LOBBY' && activeRoom.game.state !== 'DRAWING') {
                         break;
                     }
                     const redoneOp = activeRoom.state.redo(userId);
@@ -348,6 +354,9 @@ wss.on('connection', async (ws, req) => {
                     if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
                         break;
                     }
+                    if (activeRoom.game.state !== 'LOBBY' && activeRoom.game.state !== 'DRAWING') {
+                        break;
+                    }
                     activeRoom.state.clear();
                     roomManager.broadcast(currentRoomId, {
                         type: 'op:clear',
@@ -358,6 +367,13 @@ wss.on('connection', async (ws, req) => {
                 }
 
                 case 'cursor': {
+                    if (activeRoom.game.state === 'DRAWING' && activeRoom.game.currentDrawerId !== userId) {
+                        break; // Only broadcast drawer cursor during game rounds
+                    }
+                    if (activeRoom.game.state !== 'LOBBY' && activeRoom.game.state !== 'DRAWING') {
+                        break;
+                    }
+
                     if (typeof data.x === 'number' && typeof data.y === 'number') {
                         const clientRecord = activeRoom.clients.get(ws);
                         if (clientRecord) {

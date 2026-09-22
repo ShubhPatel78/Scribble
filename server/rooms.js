@@ -256,6 +256,28 @@ class RoomManager {
     }
 
     /**
+     * Sends a message to a specific user by userId in a room.
+     * @param {string} roomId
+     * @param {string} userId
+     * @param {Object} message
+     */
+    sendToUser(roomId, userId, message) {
+        const room = this.rooms.get(this.normalizeCode(roomId));
+        if (!room) return;
+
+        const payload = JSON.stringify(message);
+        room.clients.forEach((clientInfo, ws) => {
+            if (clientInfo.id === userId && ws.readyState === 1 /* OPEN */) {
+                try {
+                    ws.send(payload);
+                } catch (err) {
+                    console.error(`[RoomManager] Error sending to user ${userId} in room ${roomId}:`, err);
+                }
+            }
+        });
+    }
+
+    /**
      * Retrieves sanitized presence list of connected users in a room.
      * @param {string} roomId
      * @returns {Array<Object>}

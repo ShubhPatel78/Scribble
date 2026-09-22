@@ -18,14 +18,15 @@ test('Integration: Two clients sync strokes and isolate rooms', async (t) => {
         });
     };
 
-    const waitForMessage = (client, predicate, timeoutMs = 4000) => {
+    const waitForMessage = (client, predicate, timeoutMs = 2000) => {
         return new Promise((resolve, reject) => {
             const start = Date.now();
             const check = () => {
                 const match = client.messages.find(predicate);
                 if (match) return resolve(match);
                 if (Date.now() - start > timeoutMs) {
-                    return reject(new Error(`Timeout waiting for message matching predicate: ${JSON.stringify(client.messages)}`));
+                    console.error('All client messages on timeout:', JSON.stringify(client.messages, null, 2));
+                    return reject(new Error(`Timeout waiting for message matching predicate. Received: ${JSON.stringify(client.messages)}`));
                 }
                 setTimeout(check, 25);
             };
@@ -35,6 +36,9 @@ test('Integration: Two clients sync strokes and isolate rooms', async (t) => {
 
     t.after(() => {
         clearInterval(heartbeatInterval);
+        roomManager.rooms.forEach(room => {
+            if (room.game) room.game.clearTimer();
+        });
         server.close();
     });
 
@@ -92,6 +96,49 @@ test('Integration: Two clients sync strokes and isolate rooms', async (t) => {
     const bUndo = await waitForMessage(clientB, m => m.type === 'op:undo');
     assert.ok(bUndo, 'Client B should receive undo');
     assert.equal(bUndo.opId, 'test-stroke-1');
+
+    // 4. Test Game Turn Access: Start game in "sprint"
+    clientA.messages.length = 0;
+    clientB.messages.length = 0;
+
+    // Host (Client A) starts game
+    clientA.ws.send(JSON.stringify({ type: 'game:start' }));
+
+    const aWordOptions = await waitForMessage(clientA, m => m.type === 'game:word_options');
+    assert.ok(aWordOptions, 'Drawer receives word options');
+
+    // Drawer chooses word
+    clientA.ws.send(JSON.stringify({
+        type: 'game:choose_word',
+        word: aWordOptions.words[0]
+    }));
+
+    await waitForMessage(clientB, m => m.type === 'game:state_changed' && m.state === 'DRAWING');
+
+    // Drawer (Client A) draws stroke
+    clientA.messages.length = 0;
+    clientB.messages.length = 0;
+
+    clientA.ws.send(JSON.stringify({
+        type: 'op:commit',
+        operation: { id: 'drawer-stroke', type: 'brush', points: [{x: 5, y: 5}, {x: 10, y: 10}], color: '#333', width: 4 }
+    }));
+
+    const bReceivedDrawerStroke = await waitForMessage(clientB, m => m.type === 'op:commit' && m.operation.id === 'drawer-stroke');
+    assert.ok(bReceivedDrawerStroke, 'Guesser received stroke from active drawer');
+
+    // Non-drawer (Client B / Guesser) tries to draw -> MUST BE BLOCKED BY SERVER
+    clientA.messages.length = 0;
+    clientB.messages.length = 0;
+
+    clientB.ws.send(JSON.stringify({
+        type: 'op:commit',
+        operation: { id: 'guesser-illegal-stroke', type: 'brush', points: [{x: 0, y: 0}], color: '#f00', width: 2 }
+    }));
+
+    await new Promise(r => setTimeout(r, 200));
+    const aReceivedGuesserStroke = clientA.messages.find(m => m.type === 'op:commit' && m.operation.id === 'guesser-illegal-stroke');
+    assert.equal(aReceivedGuesserStroke, undefined, 'Server must block non-drawer from committing strokes');
 
     // Cleanup sockets
     clientA.ws.close();
