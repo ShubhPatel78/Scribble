@@ -152,6 +152,12 @@ class CanvasEngine {
 
             if (e.button !== 0) return; // Only primary button draws
 
+            try {
+                if (e.pointerId !== undefined) {
+                    this.viewport.setPointerCapture(e.pointerId);
+                }
+            } catch (_) {}
+
             const world = this.screenToWorld(e.clientX, e.clientY);
             this.isInteracting = true;
             this.activeShapeStart = world;
@@ -240,6 +246,12 @@ class CanvasEngine {
                 this.isPanning = false;
                 this.viewport.classList.remove('panning');
                 return;
+            }
+
+            if (e && e.pointerId !== undefined) {
+                try {
+                    this.viewport.releasePointerCapture(e.pointerId);
+                } catch (_) {}
             }
 
             if (!this.isInteracting) return;
