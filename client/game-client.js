@@ -409,22 +409,24 @@ class GameClient {
     }
 
     appendChatMessage(msg) {
-        if (!this.chatMessages) return;
+        if (!this.chatMessages || !msg) return;
 
+        const effectiveType = msg.msgType || msg.type || 'chat';
         const row = document.createElement('div');
-        row.className = `chat-msg msg-${msg.type || 'chat'}`;
+        row.className = `chat-msg msg-${effectiveType}`;
 
-        if (msg.type === 'system') {
-            row.innerHTML = `<span class="system-text" style="color: ${msg.color || '#64748B'}">📢 ${this.escapeHtml(msg.text)}</span>`;
-        } else if (msg.type === 'correct_guess') {
-            row.innerHTML = `<span class="correct-guess-text">🎉 <strong>${this.escapeHtml(msg.username)}</strong> guessed the word! <span class="points-tag">+${msg.points}</span></span>`;
-        } else if (msg.type === 'close_guess') {
-            row.innerHTML = `<span class="close-guess-text">💡 ${this.escapeHtml(msg.text)}</span>`;
+        if (effectiveType === 'system') {
+            row.innerHTML = `<span class="system-text" style="color: ${msg.color || '#64748B'}">📢 ${this.escapeHtml(msg.text || '')}</span>`;
+        } else if (effectiveType === 'correct_guess') {
+            const pointsTag = msg.points ? `<span class="points-tag">+${msg.points} pts</span>` : '';
+            row.innerHTML = `<span class="correct-guess-text">🎉 <strong>${this.escapeHtml(msg.username || 'Someone')}</strong> guessed the word! ${pointsTag}</span>`;
+        } else if (effectiveType === 'close_guess') {
+            row.innerHTML = `<span class="close-guess-text">💡 ${this.escapeHtml(msg.text || '')}</span>`;
         } else {
             const nameColor = msg.color || '#3B82F6';
             row.innerHTML = `
                 <strong class="msg-author" style="color: ${nameColor}">${this.escapeHtml(msg.username || 'Anonymous')}:</strong>
-                <span class="msg-body">${this.escapeHtml(msg.text)}</span>
+                <span class="msg-body">${this.escapeHtml(msg.text || '')}</span>
             `;
         }
 

@@ -310,8 +310,11 @@ class GameEngine {
      * Processes incoming chat message / guess from a player.
      */
     handleChatMessage(userId, text) {
-        const player = this.players.get(userId);
-        if (!player || !text || !text.trim()) return null;
+        let player = this.players.get(userId);
+        if (!player) {
+            player = { id: userId, username: 'Player', color: '#3B82F6', score: 0, guessedThisTurn: false };
+        }
+        if (!text || !text.trim()) return null;
 
         const cleanText = text.trim();
 
@@ -367,6 +370,7 @@ class GameEngine {
                     if (this.onSend) {
                         this.onSend(userId, 'chat:message', {
                             type: 'close_guess',
+                            msgType: 'close_guess',
                             text: `"${cleanText}" is very close!`,
                             color: '#F59E0B'
                         });
@@ -526,7 +530,11 @@ class GameEngine {
 
     broadcastChat(messagePayload) {
         if (this.onBroadcast) {
-            this.onBroadcast('chat:message', messagePayload);
+            this.onBroadcast('chat:message', {
+                ...messagePayload,
+                message: messagePayload,
+                msgType: messagePayload.type
+            });
         }
     }
 

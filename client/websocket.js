@@ -174,7 +174,14 @@ class WebSocketClient {
                 break;
 
             case 'chat:message':
-                if (this.onChatMessage) this.onChatMessage(data);
+            case 'chat':
+            case 'system':
+            case 'correct_guess':
+            case 'close_guess':
+                if (this.onChatMessage) {
+                    const msg = data.message || data;
+                    this.onChatMessage(msg);
+                }
                 break;
 
             default:
