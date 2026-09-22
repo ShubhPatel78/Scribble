@@ -113,7 +113,7 @@ class GameClient {
         // 1. Update Top Bar
         if (this.roundDisplay) {
             if (this.gameState === 'LOBBY') {
-                this.roundDisplay.textContent = 'Waiting for players';
+                this.roundDisplay.textContent = 'Lobby (Free Draw)';
             } else if (this.gameState === 'GAME_OVER') {
                 this.roundDisplay.textContent = 'Game Over';
             } else {
@@ -128,10 +128,8 @@ class GameClient {
         if (this.startGameBtn) {
             if (this.isHost && (this.gameState === 'LOBBY' || this.gameState === 'GAME_OVER')) {
                 this.startGameBtn.classList.remove('hidden');
-                this.startGameBtn.disabled = this.players.length < 2;
-                this.startGameBtn.title = this.players.length < 2
-                    ? 'Need at least 2 players to start'
-                    : 'Start the Scribble match!';
+                this.startGameBtn.disabled = this.players.length < 1;
+                this.startGameBtn.title = 'Start the Scribble match!';
             } else {
                 this.startGameBtn.classList.add('hidden');
             }
@@ -172,7 +170,7 @@ class GameClient {
         if (!this.wordHintText) return;
 
         if (this.gameState === 'LOBBY') {
-            this.wordHintText.innerHTML = '<span class="clue-subtle">Scribble Arena — Invite friends to play!</span>';
+            this.wordHintText.innerHTML = '<span class="clue-subtle">🎨 Lobby: Practice drawing or click "Start Game" to play!</span>';
             return;
         }
 

@@ -121,8 +121,8 @@ class GameEngine {
         if (!player || (!player.isHost && this.players.size > 1)) {
             return { error: 'Only the room host can start the game.' };
         }
-        if (this.players.size < 2) {
-            return { error: 'Need at least 2 players to start a Scribble match.' };
+        if (this.players.size < 1) {
+            return { error: 'Need at least 1 player to start a Scribble match.' };
         }
 
         // Reset scores
@@ -147,7 +147,7 @@ class GameEngine {
         if (this.onClearCanvas) this.onClearCanvas();
 
         const playerList = Array.from(this.players.values());
-        if (playerList.length < 2) {
+        if (playerList.length < 1) {
             this.resetToLobby();
             return;
         }

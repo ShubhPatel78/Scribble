@@ -51,6 +51,15 @@ class CanvasEngine {
     init() {
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        if (typeof window.ResizeObserver !== 'undefined') {
+            const ro = new ResizeObserver(() => this.resize());
+            ro.observe(this.viewport);
+            if (this.viewport.parentElement) {
+                ro.observe(this.viewport.parentElement);
+            }
+        }
+        requestAnimationFrame(() => this.resize());
+        setTimeout(() => this.resize(), 100);
         this.bindEvents();
     }
 
@@ -58,8 +67,8 @@ class CanvasEngine {
      * Resizes canvases matching container dimensions and DPI.
      */
     resize() {
-        const width = this.viewport.clientWidth;
-        const height = this.viewport.clientHeight;
+        const width = Math.max(this.viewport.clientWidth, this.viewport.offsetWidth, 100);
+        const height = Math.max(this.viewport.clientHeight, this.viewport.offsetHeight, 100);
         this.dpr = window.devicePixelRatio || 1;
 
         [this.drawingCanvas, this.overlayCanvas].forEach(canvas => {

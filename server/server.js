@@ -191,7 +191,18 @@ wss.on('connection', async (ws, req) => {
                             username,
                             roomId: currentRoomId,
                             snapshot: newRoom.state.getSnapshot(),
-                            users: roomManager.getUsers(currentRoomId)
+                            users: roomManager.getUsers(currentRoomId),
+                            game: {
+                                state: newRoom.game.state,
+                                round: newRoom.game.currentRound,
+                                totalRounds: newRoom.game.totalRounds,
+                                drawerId: newRoom.game.currentDrawerId,
+                                drawerName: newRoom.game.players.get(newRoom.game.currentDrawerId)?.username || '',
+                                wordClue: newRoom.game.getWordClue(),
+                                wordLength: newRoom.game.currentWord ? newRoom.game.currentWord.replace(/\s/g, '').length : 0,
+                                timeLeft: newRoom.game.timeLeft,
+                                players: Array.from(newRoom.game.players.values())
+                            }
                         }));
 
                         roomManager.broadcast(currentRoomId, {
