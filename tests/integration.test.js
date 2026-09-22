@@ -145,3 +145,96 @@ test('Integration: Two clients sync strokes and isolate rooms', async (t) => {
     clientB.ws.close();
     clientC.ws.close();
 });
+
+test('Integration: Session reconnection restores player score and voluntary exit cleans up', async (t) => {
+    await new Promise(resolve => server.listen(0, resolve));
+    const port = server.address().port;
+
+    const createClient = (roomId, username, sessionId) => {
+        return new Promise((resolve, reject) => {
+            const sessParam = sessionId ? `&sessionId=${sessionId}` : '';
+            const ws = new WebSocket(`ws://localhost:${port}/?room=${roomId}&username=${username}${sessParam}`);
+            const messages = [];
+            ws.on('message', (data) => messages.push(JSON.parse(data.toString())));
+            ws.on('open', () => resolve({ ws, messages }));
+            ws.on('error', reject);
+        });
+    };
+
+    const waitForMessage = (client, predicate, timeoutMs = 2000) => {
+        return new Promise((resolve, reject) => {
+            const start = Date.now();
+            const check = () => {
+                const match = client.messages.find(predicate);
+                if (match) return resolve(match);
+                if (Date.now() - start > timeoutMs) {
+                    return reject(new Error(`Timeout waiting for message. Received: ${JSON.stringify(client.messages)}`));
+                }
+                setTimeout(check, 25);
+            };
+            check();
+        });
+    };
+
+    t.after(() => {
+        clearInterval(heartbeatInterval);
+        roomManager.rooms.forEach(room => {
+            if (room.game) room.game.clearTimer();
+        });
+        server.close();
+    });
+
+    const sessionIdA = 'sess_player_alice_123';
+    const clientA = await createClient('match1', 'Alice', sessionIdA);
+    const clientB = await createClient('match1', 'Bob', 'sess_player_bob_456');
+
+    await waitForMessage(clientA, m => m.type === 'init');
+    await waitForMessage(clientB, m => m.type === 'init');
+
+    // Host starts game
+    clientA.ws.send(JSON.stringify({ type: 'game:start' }));
+    const aWordOptions = await waitForMessage(clientA, m => m.type === 'game:word_options');
+    clientA.ws.send(JSON.stringify({ type: 'game:choose_word', word: aWordOptions.words[0] }));
+
+    await waitForMessage(clientB, m => m.type === 'game:state_changed' && m.state === 'DRAWING');
+
+    // Bob guesses the word correctly and scores points
+    clientB.ws.send(JSON.stringify({ type: 'chat:message', text: aWordOptions.words[0] }));
+    const correctMsg = await waitForMessage(clientB, m => m.type === 'correct_guess');
+    assert.ok(correctMsg, 'Bob should get correct guess notification');
+
+    // Get room game instance and verify Bob has score > 0
+    const room = roomManager.rooms.get('MATCH1');
+    const bobPlayer = Array.from(room.game.players.values()).find(p => p.username === 'Bob');
+    assert.ok(bobPlayer && bobPlayer.score > 0, 'Bob has accumulated score');
+    const bobScoreBeforeDisconnect = bobPlayer.score;
+
+    // Simulate accidental socket close on Bob's side
+    clientB.ws.close();
+    await new Promise(r => setTimeout(r, 100));
+
+    // Bob reconnects with same sessionId
+    const clientB_reconnect = await createClient('match1', 'Bob', 'sess_player_bob_456');
+    const initB = await waitForMessage(clientB_reconnect, m => m.type === 'init');
+    assert.ok(initB, 'Bob reconnected and received init');
+
+    // Check game state on reconnect
+    assert.ok(initB.game, 'Init payload includes game state');
+    const restoredBob = initB.game.players.find(p => p.sessionId === 'sess_player_bob_456');
+    assert.ok(restoredBob, 'Bob was found in game player records');
+    assert.equal(restoredBob.score, bobScoreBeforeDisconnect, 'Bob preserved his exact score upon reconnection');
+
+    // Test Voluntary Exit: Alice sends game:leave
+    clientA.ws.send(JSON.stringify({ type: 'game:leave' }));
+    await new Promise(r => setTimeout(r, 100));
+
+    // Assert Alice is removed and Bob is promoted to host
+    const aliceInRoom = Array.from(room.game.players.values()).find(p => p.sessionId === sessionIdA);
+    assert.equal(aliceInRoom, undefined, 'Alice should be immediately removed after voluntary exit');
+    const bInRoom = Array.from(room.game.players.values()).find(p => p.sessionId === 'sess_player_bob_456');
+    assert.ok(bInRoom.isHost, 'Bob should be promoted to host after Alice left');
+
+    clientA.ws.close();
+    clientB_reconnect.ws.close();
+});
+

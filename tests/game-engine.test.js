@@ -158,3 +158,61 @@ test('GameEngine - custom timer and room settings', () => {
 
     game.clearTimer();
 });
+
+test('GameEngine - session reconnection retains score, host, and player state', () => {
+    const game = new GameEngine();
+    game.onBroadcast = () => {};
+    game.onSend = () => {};
+    game.onClearCanvas = () => {};
+
+    // Initial player joins with sessionId
+    game.addPlayer({ id: 'u1', sessionId: 'sess_123', username: 'Alice', color: '#ff0000' });
+    const p1 = game.players.get('u1');
+    p1.score = 350;
+    assert.equal(p1.isHost, true);
+
+    // Player disconnects temporarily
+    game.handlePlayerDisconnect('u1');
+    assert.equal(p1.connected, false);
+    assert.ok(game.disconnectTimers.has('u1'), 'Grace period timer should be active');
+
+    // Player reconnects on a new socket connection (id: 'u1_new') with same sessionId
+    game.addPlayer({ id: 'u1_new', sessionId: 'sess_123', username: 'Alice' });
+
+    assert.equal(game.players.size, 1);
+    const restoredP1 = game.players.get('u1_new');
+    assert.ok(restoredP1, 'Player should be indexed under new socket ID');
+    assert.equal(restoredP1.score, 350, 'Score must be retained');
+    assert.equal(restoredP1.isHost, true, 'Host status must be retained');
+    assert.equal(restoredP1.connected, true, 'Connected flag set to true');
+    assert.equal(game.disconnectTimers.has('u1'), false, 'Disconnect timer must be cancelled');
+
+    game.clearTimer();
+});
+
+test('GameEngine - voluntary exit immediately removes player and advances turn/host', () => {
+    const broadcasts = [];
+    const game = new GameEngine();
+    game.onBroadcast = (event, payload) => broadcasts.push({ event, payload });
+    game.onSend = () => {};
+    game.onClearCanvas = () => {};
+
+    game.addPlayer({ id: 'u1', username: 'Alice', color: '#ff0000' });
+    game.addPlayer({ id: 'u2', username: 'Bob', color: '#00ff00' });
+
+    game.startGame('u1');
+    game.selectWord('u1', 'banana');
+    assert.equal(game.state, GAME_STATES.DRAWING);
+    assert.equal(game.currentDrawerId, 'u1');
+
+    // Alice (drawer & host) leaves voluntarily mid-game
+    game.leavePlayer('u1');
+
+    assert.equal(game.players.size, 1);
+    assert.equal(game.players.has('u1'), false);
+    assert.equal(game.players.get('u2').isHost, true, 'Bob is promoted to host');
+    // Drawer left -> turn ends
+    assert.equal(game.state, GAME_STATES.ROUND_END);
+
+    game.clearTimer();
+});

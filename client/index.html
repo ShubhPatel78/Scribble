@@ -93,6 +93,11 @@
                 </div>
             </div>
 
+            <!-- Leave Room Button -->
+            <button id="leave-room-btn" class="btn-leave-room" title="Exit match and return to home">
+                🚪 <span class="btn-text">Leave</span>
+            </button>
+
             <!-- Self Profile -->
             <div class="self-profile">
                 <span id="self-avatar" class="user-circle"></span>
@@ -472,6 +477,18 @@
                     <button type="submit" class="btn-primary">Join Match</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Leave Room Confirmation -->
+    <div id="leave-room-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h3>🚪 Leave Game Room?</h3>
+            <p>Are you sure you want to exit the current room? If you are drawing or hosting, the turn or host will be passed to another player.</p>
+            <div class="modal-actions">
+                <button type="button" id="leave-cancel-btn" class="btn-secondary">Stay in Game</button>
+                <button type="button" id="leave-confirm-btn" class="btn-danger">Leave Game</button>
+            </div>
         </div>
     </div>
 

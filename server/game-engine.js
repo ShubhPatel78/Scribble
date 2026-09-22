@@ -44,6 +44,7 @@ class GameEngine {
         this.turnStartTime = 0;
         this.timeLeft = 0;
         this.timerInterval = null;
+        this.disconnectTimers = new Map(); // userId -> timer
 
         // Callbacks to communicate with WebSocket server
         this.onBroadcast = null; // (event, payload, excludeWs) => void
@@ -86,17 +87,51 @@ class GameEngine {
     }
 
     /**
-     * Adds a player to the game.
+     * Adds or reconnects a player in the game.
      */
     addPlayer(playerInfo) {
+        // Check if player is reconnecting with the same sessionId or id
+        const existingPlayer = Array.from(this.players.values()).find(
+            p => (playerInfo.sessionId && p.sessionId === playerInfo.sessionId) || p.id === playerInfo.id
+        );
+
+        if (existingPlayer) {
+            // Cancel any pending disconnect cleanup timer
+            if (this.disconnectTimers.has(existingPlayer.id)) {
+                clearTimeout(this.disconnectTimers.get(existingPlayer.id));
+                this.disconnectTimers.delete(existingPlayer.id);
+            }
+
+            // Update ID if reconnected with new socket connection
+            if (existingPlayer.id !== playerInfo.id) {
+                this.players.delete(existingPlayer.id);
+                const wasDrawer = (this.currentDrawerId === existingPlayer.id);
+                existingPlayer.id = playerInfo.id;
+                this.players.set(existingPlayer.id, existingPlayer);
+                if (wasDrawer) {
+                    this.currentDrawerId = playerInfo.id;
+                }
+            }
+
+            existingPlayer.connected = true;
+            if (playerInfo.username) existingPlayer.username = playerInfo.username;
+            if (playerInfo.sessionId) existingPlayer.sessionId = playerInfo.sessionId;
+            if (playerInfo.color) existingPlayer.color = playerInfo.color;
+
+            this.broadcastGameState();
+            return existingPlayer;
+        }
+
         const isFirstPlayer = this.players.size === 0;
         const player = {
             id: playerInfo.id,
+            sessionId: playerInfo.sessionId || playerInfo.id,
             username: playerInfo.username || 'Anonymous',
             color: playerInfo.color || '#3B82F6',
             score: 0,
             guessedThisTurn: false,
-            isHost: isFirstPlayer
+            isHost: isFirstPlayer,
+            connected: true
         };
         this.players.set(player.id, player);
         this.broadcastGameState();
@@ -104,9 +139,52 @@ class GameEngine {
     }
 
     /**
-     * Removes a player. If host leaves, assign to next. If active drawer leaves, skip turn.
+     * Handles unexpected socket disconnect with 60-second grace period.
+     * Preserves player points and status in case they reconnect.
+     */
+    handlePlayerDisconnect(userId) {
+        const player = this.players.get(userId);
+        if (!player) return;
+
+        player.connected = false;
+        player.disconnectedAt = Date.now();
+        this.broadcastGameState();
+
+        if (this.disconnectTimers.has(userId)) {
+            clearTimeout(this.disconnectTimers.get(userId));
+        }
+
+        const timer = setTimeout(() => {
+            this.disconnectTimers.delete(userId);
+            if (this.players.has(userId) && !this.players.get(userId).connected) {
+                this.removePlayer(userId);
+            }
+        }, 60000); // 60s grace period for page refresh / network drop
+
+        if (timer.unref) timer.unref();
+        this.disconnectTimers.set(userId, timer);
+    }
+
+    /**
+     * Handles voluntary exit from room (immediately removes player).
+     */
+    leavePlayer(userId) {
+        if (this.disconnectTimers.has(userId)) {
+            clearTimeout(this.disconnectTimers.get(userId));
+            this.disconnectTimers.delete(userId);
+        }
+        return this.removePlayer(userId);
+    }
+
+    /**
+     * Removes a player permanently. If host leaves, assign to next. If active drawer leaves, skip turn.
      */
     removePlayer(userId) {
+        if (this.disconnectTimers.has(userId)) {
+            clearTimeout(this.disconnectTimers.get(userId));
+            this.disconnectTimers.delete(userId);
+        }
+
         const wasHost = this.players.get(userId)?.isHost;
         const wasDrawer = this.currentDrawerId === userId;
         this.players.delete(userId);
@@ -505,7 +583,8 @@ class GameEngine {
             score: p.score,
             isHost: p.isHost,
             isDrawer: p.id === this.currentDrawerId,
-            guessed: p.guessedThisTurn
+            guessed: p.guessedThisTurn,
+            connected: p.connected !== false
         }));
 
         this.onBroadcast('game:state_changed', {
@@ -542,6 +621,10 @@ class GameEngine {
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
+        }
+        if (this.disconnectTimers) {
+            this.disconnectTimers.forEach(t => clearTimeout(t));
+            this.disconnectTimers.clear();
         }
     }
 }

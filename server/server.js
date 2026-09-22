@@ -114,6 +114,7 @@ wss.on('connection', async (ws, req) => {
     const rawRoom = parsedUrl.searchParams.get('room');
     const initialRoomCode = (rawRoom && rawRoom.trim()) ? rawRoom.trim().toUpperCase() : generateRoomCode();
     const initialUsername = (parsedUrl.searchParams.get('username') || '').toString().trim();
+    const sessionId = (parsedUrl.searchParams.get('sessionId') || parsedUrl.searchParams.get('token') || '').toString().trim();
 
     const userId = `user_${++globalUserCounter}_${Math.random().toString(36).substring(2, 7)}`;
     const userColor = USER_COLORS[globalUserCounter % USER_COLORS.length];
@@ -122,6 +123,7 @@ wss.on('connection', async (ws, req) => {
 
     const clientInfo = {
         id: userId,
+        sessionId: sessionId || `sess_${userId}`,
         username,
         color: userColor
     };
@@ -391,6 +393,17 @@ wss.on('connection', async (ws, req) => {
                     }
                     break;
                 }
+
+                case 'game:leave': {
+                    roomManager.removeClient(currentRoomId, ws, true); // true = voluntary exit
+                    roomManager.broadcast(currentRoomId, {
+                        type: 'user:left',
+                        userId,
+                        username,
+                        users: roomManager.getUsers(currentRoomId)
+                    });
+                    break;
+                }
             }
         } catch (err) {
             console.error('[Server] Message handling error:', err);
@@ -398,20 +411,22 @@ wss.on('connection', async (ws, req) => {
     });
 
     ws.on('close', () => {
-        roomManager.removeClient(currentRoomId, ws);
+        roomManager.removeClient(currentRoomId, ws, false); // false = graceful disconnect (60s grace period)
         roomManager.broadcast(currentRoomId, {
             type: 'user:left',
             userId,
+            username,
             users: roomManager.getUsers(currentRoomId)
         });
     });
 
     ws.on('error', (err) => {
         console.error(`[Server] Socket error for user ${userId}:`, err.message);
-        roomManager.removeClient(currentRoomId, ws);
+        roomManager.removeClient(currentRoomId, ws, false);
         roomManager.broadcast(currentRoomId, {
             type: 'user:left',
             userId,
+            username,
             users: roomManager.getUsers(currentRoomId)
         });
     });

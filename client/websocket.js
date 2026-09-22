@@ -48,10 +48,19 @@ class WebSocketClient {
             return;
         }
 
+        // Retrieve or generate persistent session ID for reconnection recovery
+        let sessionId = localStorage.getItem('canvas_session_id');
+        if (!sessionId) {
+            sessionId = 'sess_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+            localStorage.setItem('canvas_session_id', sessionId);
+        }
+        this.sessionId = sessionId;
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const params = new URLSearchParams({
             room: this.roomId,
-            username: this.username
+            username: this.username,
+            sessionId: this.sessionId
         });
         const wsUrl = `${protocol}//${window.location.host}/?${params.toString()}`;
 
@@ -192,6 +201,19 @@ class WebSocketClient {
     send(data) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
+        }
+    }
+
+    sendLeaveGame() {
+        this.send({ type: 'game:leave' });
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        if (this.ws) {
+            try {
+                this.ws.close();
+            } catch (_) {}
         }
     }
 

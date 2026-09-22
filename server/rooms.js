@@ -165,6 +165,7 @@ class RoomManager {
         const room = this.getOrCreateRoom(roomId);
         room.clients.set(ws, {
             id: clientInfo.id,
+            sessionId: clientInfo.sessionId || clientInfo.id,
             username: clientInfo.username,
             color: clientInfo.color,
             cursor: null
@@ -179,12 +180,12 @@ class RoomManager {
 
     /**
      * Removes a client from a room.
-     * If room becomes empty, saves snapshot to DB and schedules memory cleanup after 10m.
      * @param {string} roomId
      * @param {WebSocket} ws
+     * @param {boolean} isVoluntaryLeave
      * @returns {Object|null} Deleted client metadata
      */
-    removeClient(roomId, ws) {
+    removeClient(roomId, ws, isVoluntaryLeave = false) {
         const room = this.rooms.get(this.normalizeCode(roomId));
         if (!room) return null;
 
@@ -192,22 +193,26 @@ class RoomManager {
         room.clients.delete(ws);
 
         if (clientInfo && room.game) {
-            room.game.removePlayer(clientInfo.id);
+            if (isVoluntaryLeave) {
+                room.game.leavePlayer(clientInfo.id);
+            } else {
+                room.game.handlePlayerDisconnect(clientInfo.id);
+            }
         }
 
         if (room.clients.size === 0) {
-            if (room.game) room.game.resetToLobby();
-
             // Immediately sync snapshot to Supabase before idling
             updateRoomSnapshotInDB(room.id, room.state.getSnapshot());
 
             // Schedule room disposal from memory after 10 minutes of inactivity
             room.cleanupTimer = setTimeout(() => {
                 if (room.clients.size === 0) {
+                    if (room.game) room.game.resetToLobby();
                     this.rooms.delete(room.id);
-                    console.log(`🧹 Room ${room.id} disposed from memory cache.`);
+                    console.log(`🧹 Disposed empty room ${room.id} from memory.`);
                 }
             }, 10 * 60 * 1000);
+
             if (room.cleanupTimer.unref) room.cleanupTimer.unref();
         }
 

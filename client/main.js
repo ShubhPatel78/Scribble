@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyRoomBtn = document.getElementById('copy-room-btn');
     const newRoomBtn = document.getElementById('new-room-btn');
     const joinRoomBtn = document.getElementById('join-room-btn');
+    const leaveRoomBtn = document.getElementById('leave-room-btn');
 
     const connectionBadge = document.getElementById('connection-badge');
     const connectionText = document.getElementById('connection-text');
@@ -120,6 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const joinCodeInput = document.getElementById('join-code-input');
     const joinUsernameInput = document.getElementById('join-username-input');
     const joinCancelBtn = document.getElementById('join-cancel-btn');
+
+    const leaveRoomModal = document.getElementById('leave-room-modal');
+    const leaveCancelBtn = document.getElementById('leave-cancel-btn');
+    const leaveConfirmBtn = document.getElementById('leave-confirm-btn');
 
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
@@ -795,6 +800,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (joinRoomModal) joinRoomModal.classList.add('hidden');
             window.location.href = `/?room=${encodeURIComponent(targetCode)}${chosenUser ? `&username=${encodeURIComponent(chosenUser)}` : ''}`;
+        });
+    }
+
+    if (leaveRoomBtn) {
+        leaveRoomBtn.addEventListener('click', () => {
+            if (leaveRoomModal) leaveRoomModal.classList.remove('hidden');
+        });
+    }
+
+    if (leaveCancelBtn) {
+        leaveCancelBtn.addEventListener('click', () => {
+            if (leaveRoomModal) leaveRoomModal.classList.add('hidden');
+        });
+    }
+
+    if (leaveConfirmBtn) {
+        leaveConfirmBtn.addEventListener('click', () => {
+            client.sendLeaveGame();
+            window.location.href = '/';
         });
     }
 

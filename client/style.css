@@ -2266,3 +2266,43 @@ body {
 .settings-card {
     max-width: 440px;
 }
+
+/* Leave Room Navigation Button & Modal */
+.btn-leave-room {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius-md);
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-leave-room:hover {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: #ef4444;
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 8px 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
