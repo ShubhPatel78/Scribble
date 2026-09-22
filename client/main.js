@@ -866,6 +866,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (e.key === 'Enter' || e.key === '/') {
+            e.preventDefault();
+            gameClient.openChatDrawer();
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            gameClient.closeChatDrawer();
+            return;
+        }
+
         if (['p', 'b', 'e', 'f', 'g', 'r', 'o', 'c', 'l'].includes(e.key.toLowerCase()) && !engine.canDraw) {
             return; // Ignore drawing tool shortcuts when user is not the active drawer
         }
