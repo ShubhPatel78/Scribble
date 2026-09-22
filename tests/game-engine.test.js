@@ -216,3 +216,54 @@ test('GameEngine - voluntary exit immediately removes player and advances turn/h
 
     game.clearTimer();
 });
+
+test('GameEngine - normal in-game chatting for drawer and guessers with spoiler prevention', () => {
+    const broadcasts = [];
+    const userMessages = [];
+    const game = new GameEngine();
+    game.onBroadcast = (event, payload) => broadcasts.push({ event, payload });
+    game.onSend = (userId, event, payload) => userMessages.push({ userId, event, payload });
+    game.onClearCanvas = () => {};
+
+    game.addPlayer({ id: 'u1', username: 'Alice', color: '#ff0000' });
+    game.addPlayer({ id: 'u2', username: 'Bob', color: '#00ff00' });
+
+    // 1. Normal chat in LOBBY
+    broadcasts.length = 0;
+    const lobbyChat = game.handleChatMessage('u2', 'Hello everyone! Ready to play?');
+    assert.equal(lobbyChat.isGuess, false);
+    assert.equal(broadcasts.length, 1);
+    assert.equal(broadcasts[0].event, 'chat:message');
+    assert.equal(broadcasts[0].payload.text, 'Hello everyone! Ready to play?');
+
+    // 2. Start Game
+    game.startGame('u1');
+    game.selectWord('u1', 'elephant');
+
+    // 3. Normal chat from Drawer during drawing phase
+    broadcasts.length = 0;
+    const drawerChat = game.handleChatMessage('u1', 'Check out my masterpiece!');
+    assert.equal(drawerChat.isGuess, false);
+    assert.equal(broadcasts.length, 1);
+    assert.equal(broadcasts[0].payload.text, 'Check out my masterpiece!');
+    assert.equal(broadcasts[0].payload.isDrawer, true);
+
+    // 4. Drawer attempts to spoil the secret word in chat -> blocked with private warning
+    broadcasts.length = 0;
+    userMessages.length = 0;
+    const drawerSpoil = game.handleChatMessage('u1', 'I am drawing an elephant');
+    assert.equal(drawerSpoil, null, 'Spoiler must be blocked');
+    assert.equal(broadcasts.length, 0, 'No broadcast to other players');
+    const warningMsg = userMessages.find(m => m.userId === 'u1');
+    assert.ok(warningMsg, 'Drawer receives private spoiler warning');
+    assert.ok(warningMsg.payload.text.includes('cannot reveal'));
+
+    // 5. Guesser chats normally without guessing
+    broadcasts.length = 0;
+    const guesserNormalChat = game.handleChatMessage('u2', 'Is it an animal?');
+    assert.equal(guesserNormalChat.isGuess, false);
+    assert.equal(broadcasts.length, 1);
+    assert.equal(broadcasts[0].payload.text, 'Is it an animal?');
+
+    game.clearTimer();
+});

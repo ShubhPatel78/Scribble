@@ -47,6 +47,13 @@ class GameClient {
         this.chatForm = document.getElementById('chat-form');
         this.chatInput = document.getElementById('chat-input');
         this.chatSendBtn = document.getElementById('chat-send-btn');
+        this.reactionChips = document.querySelectorAll('#quick-reactions-bar .reaction-chip');
+
+        // Floating In-Canvas Chat Bubble
+        this.floatingChatBubble = document.getElementById('floating-chat-bubble');
+        this.floatingChatAuthor = document.getElementById('floating-chat-author');
+        this.floatingChatText = document.getElementById('floating-chat-text');
+        this.floatingChatTimer = null;
 
         // Modals & Overlays
         this.wordChoiceModal = document.getElementById('word-choice-modal');
@@ -146,6 +153,18 @@ class GameClient {
             });
         }
 
+        // Quick Reaction Emoji Chips
+        if (this.reactionChips) {
+            this.reactionChips.forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const emoji = chip.dataset.emoji;
+                    if (emoji) {
+                        this.client.sendChat(emoji);
+                    }
+                });
+            });
+        }
+
         // Play Again Button
         if (this.playAgainBtn) {
             this.playAgainBtn.addEventListener('click', () => {
@@ -239,6 +258,9 @@ class GameClient {
         if (this.gameState !== 'CHOOSING_WORD' && this.wordChoiceModal) {
             this.wordChoiceModal.classList.add('hidden');
         }
+
+        // 6. Update dynamic chat placeholder & action label
+        this.updateChatPlaceholder();
     }
 
     updateTimer(seconds) {
@@ -414,6 +436,52 @@ class GameClient {
         this.podiumModal.classList.remove('hidden');
     }
 
+    updateChatPlaceholder() {
+        if (!this.chatInput) return;
+        const myId = this.client.clientId;
+        const myPlayer = this.players.find(p => p.id === myId);
+        const hasGuessed = myPlayer?.guessed || myPlayer?.guessedThisTurn;
+
+        if (this.gameState === 'LOBBY') {
+            this.chatInput.placeholder = '💬 Chat with everyone in the room...';
+            if (this.chatSendBtn) this.chatSendBtn.textContent = 'Send';
+        } else if (this.gameState === 'CHOOSING_WORD') {
+            this.chatInput.placeholder = '💬 Chat while waiting for the next word...';
+            if (this.chatSendBtn) this.chatSendBtn.textContent = 'Send';
+        } else if (this.gameState === 'DRAWING') {
+            if (this.isDrawer) {
+                this.chatInput.placeholder = "🎨 Chat with players (don't reveal the secret word!)...";
+                if (this.chatSendBtn) this.chatSendBtn.textContent = 'Chat';
+            } else if (hasGuessed) {
+                this.chatInput.placeholder = '✅ You guessed it! Chat with others...';
+                if (this.chatSendBtn) this.chatSendBtn.textContent = 'Chat';
+            } else {
+                this.chatInput.placeholder = '💡 Type your guess or chat...';
+                if (this.chatSendBtn) this.chatSendBtn.textContent = 'Send';
+            }
+        } else if (this.gameState === 'ROUND_END') {
+            this.chatInput.placeholder = '💬 Chat about this round...';
+            if (this.chatSendBtn) this.chatSendBtn.textContent = 'Send';
+        } else if (this.gameState === 'GAME_OVER') {
+            this.chatInput.placeholder = '🎉 GG! Chat with everyone...';
+            if (this.chatSendBtn) this.chatSendBtn.textContent = 'Send';
+        }
+    }
+
+    showFloatingChatBubble(author, text) {
+        if (!this.floatingChatBubble || !this.floatingChatAuthor || !this.floatingChatText) return;
+        if (!text) return;
+
+        this.floatingChatAuthor.textContent = `${author}:`;
+        this.floatingChatText.textContent = text;
+        this.floatingChatBubble.classList.remove('hidden');
+
+        clearTimeout(this.floatingChatTimer);
+        this.floatingChatTimer = setTimeout(() => {
+            this.floatingChatBubble.classList.add('hidden');
+        }, 3500);
+    }
+
     appendChatMessage(msg) {
         if (!this.chatMessages || !msg) return;
 
@@ -426,14 +494,29 @@ class GameClient {
         } else if (effectiveType === 'correct_guess') {
             const pointsTag = msg.points ? `<span class="points-tag">+${msg.points} pts</span>` : '';
             row.innerHTML = `<span class="correct-guess-text">🎉 <strong>${this.escapeHtml(msg.username || 'Someone')}</strong> guessed the word! ${pointsTag}</span>`;
+            this.showFloatingChatBubble('🎉 ' + (msg.username || 'Someone'), 'Guessed the word!');
         } else if (effectiveType === 'close_guess') {
             row.innerHTML = `<span class="close-guess-text">💡 ${this.escapeHtml(msg.text || '')}</span>`;
         } else {
             const nameColor = msg.color || '#3B82F6';
+            const isMe = (msg.userId && this.client.clientId && msg.userId === this.client.clientId);
+            const drawerBadge = msg.isDrawer ? '<span class="chat-role-badge drawer">🎨 Drawer</span>' : '';
+            const guessedBadge = (msg.guessed && !msg.isDrawer) ? '<span class="chat-role-badge guessed">✅ Guessed</span>' : '';
+            const youTag = isMe ? '<span class="chat-you-tag">(You)</span>' : '';
+
             row.innerHTML = `
-                <strong class="msg-author" style="color: ${nameColor}">${this.escapeHtml(msg.username || 'Anonymous')}:</strong>
+                <div class="chat-msg-header">
+                    <strong class="msg-author" style="color: ${nameColor}">${this.escapeHtml(msg.username || 'Anonymous')}${youTag}:</strong>
+                    ${drawerBadge}
+                    ${guessedBadge}
+                </div>
                 <span class="msg-body">${this.escapeHtml(msg.text || '')}</span>
             `;
+
+            // Display in-canvas floating chat bubble for real-time awareness
+            if (!isMe) {
+                this.showFloatingChatBubble(msg.username || 'Player', msg.text || '');
+            }
         }
 
         this.chatMessages.appendChild(row);

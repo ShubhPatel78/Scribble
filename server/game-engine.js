@@ -457,10 +457,22 @@ class GameEngine {
                 }
             }
 
-            // If a player who already guessed or drawer talks, hide guess from others
+            // If a player who already guessed or drawer talks, prevent spoiling the secret word
             if (alreadyGuessed || isDrawer) {
-                // If they accidentally typed the exact word, block sending it to chat
-                if (normalizeWord(cleanText) === normalizeWord(this.currentWord)) {
+                const normMsg = normalizeWord(cleanText);
+                const normSecret = normalizeWord(this.currentWord);
+                const wordsInMsg = normMsg.split(/\s+/);
+                const containsSecret = normMsg === normSecret || wordsInMsg.includes(normSecret) || (normSecret.length >= 4 && normMsg.includes(normSecret));
+
+                if (containsSecret) {
+                    if (this.onSend) {
+                        this.onSend(userId, 'chat:message', {
+                            type: 'system',
+                            msgType: 'system',
+                            text: '⚠️ You cannot reveal or mention the secret word in chat!',
+                            color: '#EF4444'
+                        });
+                    }
                     return null;
                 }
             }
@@ -474,7 +486,7 @@ class GameEngine {
             color: player.color,
             text: cleanText,
             isDrawer: userId === this.currentDrawerId,
-            guessed: player.guessedThisTurn
+            guessed: Boolean(player.guessedThisTurn)
         });
 
         return { isGuess: false };

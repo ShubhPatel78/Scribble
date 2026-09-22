@@ -136,6 +136,12 @@
                 <button type="button" id="reset-view-btn" class="zoom-pill-btn reset-btn" title="Center Canvas (0)">🎯</button>
             </div>
 
+            <!-- Floating In-Canvas Chat Bubble for Drawers and Mobile Players -->
+            <div id="floating-chat-bubble" class="floating-chat-bubble hidden">
+                <span id="floating-chat-author" class="floating-chat-author"></span>
+                <span id="floating-chat-text" class="floating-chat-text"></span>
+            </div>
+
             <!-- Modal: Word Choice (Visible only to active drawer) -->
             <div id="word-choice-modal" class="game-modal-backdrop hidden">
                 <div class="word-choice-card">
@@ -253,9 +259,23 @@
                     <span class="system-text">👋 Welcome to Scribble! Guess the word when someone draws.</span>
                 </div>
             </div>
+            <!-- Quick Reaction Emojis -->
+            <div id="quick-reactions-bar" class="quick-reactions-bar" title="Quick chat reactions">
+                <button type="button" class="reaction-chip" data-emoji="👍">👍</button>
+                <button type="button" class="reaction-chip" data-emoji="❤️">❤️</button>
+                <button type="button" class="reaction-chip" data-emoji="😂">😂</button>
+                <button type="button" class="reaction-chip" data-emoji="🔥">🔥</button>
+                <button type="button" class="reaction-chip" data-emoji="👏">👏</button>
+                <button type="button" class="reaction-chip" data-emoji="🎨">🎨</button>
+                <button type="button" class="reaction-chip" data-emoji="🤔">🤔</button>
+                <button type="button" class="reaction-chip" data-emoji="🎉">🎉</button>
+                <button type="button" class="reaction-chip" data-emoji="😮">😮</button>
+                <button type="button" class="reaction-chip" data-emoji="💯">💯</button>
+            </div>
+
             <form id="chat-form" class="chat-input-row" autocomplete="off">
-                <input type="text" id="chat-input" class="chat-input" placeholder="Type your guess here..." maxlength="100" autocomplete="off" autocorrect="off">
-                <button type="submit" id="chat-send-btn" class="chat-send-btn">Guess</button>
+                <input type="text" id="chat-input" class="chat-input" placeholder="Type a message or guess..." maxlength="120" autocomplete="off" autocorrect="off">
+                <button type="submit" id="chat-send-btn" class="chat-send-btn">Send</button>
             </form>
         </aside>
     </div>
