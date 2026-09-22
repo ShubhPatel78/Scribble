@@ -182,11 +182,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     client.onOpCommit = (op) => {
-        operations.push(op);
+        const existingIdx = operations.findIndex(o => o.id === op.id);
+        if (existingIdx >= 0) {
+            operations[existingIdx] = op;
+        } else {
+            operations.push(op);
+        }
         if (op.userId) {
             engine.remoteLiveStrokes.delete(op.userId);
-            engine.renderOverlay();
         }
+        engine.renderOverlay();
         refreshCanvas();
     };
 

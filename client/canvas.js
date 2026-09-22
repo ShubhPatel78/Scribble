@@ -180,10 +180,11 @@ class CanvasEngine {
             } else if (this.currentTool === 'brush') {
                 if (this.onLiveStroke) {
                     this.onLiveStroke({
+                        type: 'brush',
                         tool: 'brush',
                         color: this.currentColor,
                         width: this.currentWidth,
-                        points: this.activeStrokePoints
+                        points: [...this.activeStrokePoints]
                     });
                 }
             }
@@ -211,12 +212,13 @@ class CanvasEngine {
             if (this.currentTool === 'brush') {
                 this.activeStrokePoints.push(world);
                 // Throttle live stroke updates to remote peers
-                if (this.onLiveStroke && this.activeStrokePoints.length % 3 === 0) {
+                if (this.onLiveStroke && this.activeStrokePoints.length % 2 === 0) {
                     this.onLiveStroke({
+                        type: 'brush',
                         tool: 'brush',
                         color: this.currentColor,
                         width: this.currentWidth,
-                        points: this.activeStrokePoints
+                        points: [...this.activeStrokePoints]
                     });
                 }
                 this.renderOverlay();
@@ -513,7 +515,9 @@ class CanvasEngine {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        if (op.type === 'eraser') {
+        const opType = op.type || op.tool || 'brush';
+
+        if (opType === 'eraser') {
             if (isPreview) {
                 // For live preview on overlay: paint white so it visually simulates erasing.
                 // destination-out on a transparent overlay has no visible effect.
@@ -533,7 +537,7 @@ class CanvasEngine {
             ctx.fillStyle = op.color || '#000000';
         }
 
-        switch (op.type) {
+        switch (opType) {
             case 'brush':
             case 'eraser': {
                 const pts = op.points;
