@@ -575,6 +575,77 @@ body {
     touch-action: none;
 }
 
+/* Floating Canvas Zoom & Pan Controls */
+.floating-zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    background: var(--bg-surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-full);
+    padding: 3px 6px;
+    gap: 2px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    z-index: 25;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.zoom-pill-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 13px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+    padding: 0;
+}
+
+.zoom-pill-btn:hover {
+    background: var(--bg-surface-hover);
+    transform: scale(1.08);
+}
+
+.zoom-pill-btn:active {
+    transform: scale(0.95);
+}
+
+.zoom-pill-label {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.zoom-pill-label:hover {
+    color: var(--text-primary);
+    background: var(--bg-surface-hover);
+}
+
+.zoom-pill-btn.reset-btn {
+    font-size: 12px;
+    margin-left: 2px;
+    border-left: 1px solid var(--border-color);
+    border-radius: 0 var(--radius-full) var(--radius-full) 0;
+    padding-left: 4px;
+}
+
 /* Floating Toolbar for Drawer */
 .floating-toolbar.game-toolbar {
     position: absolute;
@@ -1458,6 +1529,25 @@ body {
         position: relative;
         border-radius: var(--radius-md);
         overflow: hidden;
+    }
+
+    /* Mobile Floating Zoom Controls */
+    .floating-zoom-controls {
+        top: 6px;
+        right: 6px;
+        padding: 2px 4px;
+        gap: 1px;
+    }
+
+    .zoom-pill-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+
+    .zoom-pill-label {
+        font-size: 9.5px;
+        padding: 1px 4px;
     }
 
     /* Mobile Floating Toolbar inside canvas */

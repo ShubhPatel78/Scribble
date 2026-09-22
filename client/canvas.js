@@ -35,6 +35,13 @@ class CanvasEngine {
         this.activeStrokePoints = []; // [{ x, y }] in world coordinates
         this.lastEraserPoint = null;  // last point painted — for incremental erase
 
+        // Multi-touch pinch zoom & pan state
+        this.activePointers = new Map(); // pointerId -> { clientX, clientY }
+        this.pinchStartDist = 0;
+        this.pinchStartZoom = 1.0;
+        this.pinchCenter = { x: 0, y: 0 };
+        this.isPinching = false;
+
         // In-flight remote live strokes and cursors
         this.remoteLiveStrokes = new Map(); // userId -> { points, color, width, tool }
         this.remoteCursors = new Map(); // userId -> { x, y, username, color }
@@ -141,6 +148,32 @@ class CanvasEngine {
     bindEvents() {
         // Pointer down
         this.viewport.addEventListener('pointerdown', (e) => {
+            if (e.pointerId !== undefined) {
+                this.activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+            }
+
+            // If 2 or more pointers (e.g. 2 fingers on mobile), initiate pinch zoom/pan & cancel drawing
+            if (this.activePointers.size >= 2) {
+                this.isInteracting = false;
+                this.activeStrokePoints = [];
+                this.activeShapeStart = null;
+                this.lastEraserPoint = null;
+                this.renderOverlay();
+
+                const pts = Array.from(this.activePointers.values());
+                const p1 = pts[0];
+                const p2 = pts[1];
+                this.pinchStartDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+                this.pinchStartZoom = this.zoom;
+                this.pinchCenter = {
+                    x: (p1.clientX + p2.clientX) / 2,
+                    y: (p1.clientY + p2.clientY) / 2
+                };
+                this.pinchStartPan = { x: this.panX, y: this.panY };
+                this.isPinching = true;
+                return;
+            }
+
             // Middle mouse button or Space key or Pan tool triggers pan
             if (e.button === 1 || this.currentTool === 'pan' || e.spaceKey) {
                 this.isPanning = true;
@@ -199,6 +232,42 @@ class CanvasEngine {
 
         // Pointer move
         this.viewport.addEventListener('pointermove', (e) => {
+            if (e.pointerId !== undefined && this.activePointers.has(e.pointerId)) {
+                this.activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+            }
+
+            // Handle multi-pointer pinch zoom and pan
+            if (this.isPinching && this.activePointers.size >= 2) {
+                const pts = Array.from(this.activePointers.values());
+                const p1 = pts[0];
+                const p2 = pts[1];
+                const currDist = Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+                const currCenter = {
+                    x: (p1.clientX + p2.clientX) / 2,
+                    y: (p1.clientY + p2.clientY) / 2
+                };
+                const scale = this.pinchStartDist > 0 ? (currDist / this.pinchStartDist) : 1;
+                const targetZoom = Math.min(Math.max(this.pinchStartZoom * scale, this.minZoom), this.maxZoom);
+
+                const rect = this.viewport.getBoundingClientRect();
+                const cx = this.pinchCenter.x - rect.left;
+                const cy = this.pinchCenter.y - rect.top;
+
+                const panDeltaX = currCenter.x - this.pinchCenter.x;
+                const panDeltaY = currCenter.y - this.pinchCenter.y;
+
+                this.panX = (cx - (cx - this.pinchStartPan.x) * (targetZoom / this.pinchStartZoom)) + panDeltaX;
+                this.panY = (cy - (cy - this.pinchStartPan.y) * (targetZoom / this.pinchStartZoom)) + panDeltaY;
+                this.zoom = targetZoom;
+
+                if (this.onZoomChange) this.onZoomChange(this.zoom);
+                if (this.onNeedsRedraw) this.onNeedsRedraw();
+                this.renderOverlay();
+                return;
+            }
+
+            if (this.isPinching) return;
+
             if (this.isPanning) {
                 this.panX = e.clientX - this.panStartX;
                 this.panY = e.clientY - this.panStartY;
@@ -240,8 +309,21 @@ class CanvasEngine {
             }
         });
 
-        // Pointer up
+        // Pointer up / cancel
         const endInteraction = (e) => {
+            if (e && e.pointerId !== undefined) {
+                this.activePointers.delete(e.pointerId);
+            }
+
+            if (this.isPinching) {
+                if (this.activePointers.size < 2) {
+                    this.isPinching = false;
+                    this.isInteracting = false;
+                    this.activeStrokePoints = [];
+                }
+                return;
+            }
+
             if (this.isPanning) {
                 this.isPanning = false;
                 this.viewport.classList.remove('panning');
@@ -300,6 +382,64 @@ class CanvasEngine {
 
         window.addEventListener('pointerup', endInteraction);
         window.addEventListener('pointercancel', endInteraction);
+
+        // Touch event fallback for pinch-to-zoom on mobile browsers
+        this.viewport.addEventListener('touchstart', (e) => {
+            if (e.touches.length >= 2) {
+                e.preventDefault();
+                this.isInteracting = false;
+                this.activeStrokePoints = [];
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                this.pinchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                this.pinchStartZoom = this.zoom;
+                this.pinchCenter = {
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
+                };
+                this.pinchStartPan = { x: this.panX, y: this.panY };
+                this.isPinching = true;
+                this.renderOverlay();
+            }
+        }, { passive: false });
+
+        this.viewport.addEventListener('touchmove', (e) => {
+            if (e.touches.length >= 2) {
+                e.preventDefault();
+                const t1 = e.touches[0];
+                const t2 = e.touches[1];
+                const currDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+                const currCenter = {
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
+                };
+                const scale = this.pinchStartDist > 0 ? (currDist / this.pinchStartDist) : 1;
+                const targetZoom = Math.min(Math.max(this.pinchStartZoom * scale, this.minZoom), this.maxZoom);
+
+                const rect = this.viewport.getBoundingClientRect();
+                const cx = this.pinchCenter.x - rect.left;
+                const cy = this.pinchCenter.y - rect.top;
+
+                const panDeltaX = currCenter.x - this.pinchCenter.x;
+                const panDeltaY = currCenter.y - this.pinchCenter.y;
+
+                this.panX = (cx - (cx - this.pinchStartPan.x) * (targetZoom / this.pinchStartZoom)) + panDeltaX;
+                this.panY = (cy - (cy - this.pinchStartPan.y) * (targetZoom / this.pinchStartZoom)) + panDeltaY;
+                this.zoom = targetZoom;
+
+                if (this.onZoomChange) this.onZoomChange(this.zoom);
+                if (this.onNeedsRedraw) this.onNeedsRedraw();
+                this.renderOverlay();
+            }
+        }, { passive: false });
+
+        this.viewport.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2 && this.isPinching) {
+                this.isPinching = false;
+                this.isInteracting = false;
+                this.activeStrokePoints = [];
+            }
+        }, { passive: false });
 
         // Mouse Wheel Zooming
         this.viewport.addEventListener('wheel', (e) => {

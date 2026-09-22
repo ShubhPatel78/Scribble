@@ -121,6 +121,16 @@
                 <canvas id="overlay-canvas"></canvas>
             </main>
 
+            <!-- Floating Zoom & Pan Controls (Mobile & Desktop) -->
+            <div id="canvas-zoom-controls" class="floating-zoom-controls">
+                <button type="button" id="zoom-out-btn" class="zoom-pill-btn" title="Zoom Out (-)">➖</button>
+                <button type="button" id="zoom-level-btn" class="zoom-pill-label" title="Reset Zoom to 100%">
+                    <span id="zoom-level-text">100%</span>
+                </button>
+                <button type="button" id="zoom-in-btn" class="zoom-pill-btn" title="Zoom In (+)">➕</button>
+                <button type="button" id="reset-view-btn" class="zoom-pill-btn reset-btn" title="Center Canvas (0)">🎯</button>
+            </div>
+
             <!-- Modal: Word Choice (Visible only to active drawer) -->
             <div id="word-choice-modal" class="game-modal-backdrop hidden">
                 <div class="word-choice-card">

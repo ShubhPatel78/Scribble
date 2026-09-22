@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const redoBtn = document.getElementById('redo-btn');
     const zoomInBtn = document.getElementById('zoom-in-btn');
     const zoomOutBtn = document.getElementById('zoom-out-btn');
+    const zoomLevelBtn = document.getElementById('zoom-level-btn');
     const zoomLevelText = document.getElementById('zoom-level-text');
     const resetViewBtn = document.getElementById('reset-view-btn');
     const exportPngBtn = document.getElementById('export-png-btn');
@@ -323,6 +324,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     engine.onNeedsRedraw = () => {
         engine.redraw(operations);
+    };
+
+    engine.onZoomChange = (zoom) => {
+        if (zoomLevelText) {
+            zoomLevelText.textContent = `${Math.round(zoom * 100)}%`;
+        }
     };
 
     // 3. Setup WebSocket Callbacks
@@ -633,6 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (zoomInBtn) zoomInBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 1.2));
     if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => engine.setZoom(engine.zoom * 0.8));
+    if (zoomLevelBtn) zoomLevelBtn.addEventListener('click', () => engine.setZoom(1.0));
     if (resetViewBtn) resetViewBtn.addEventListener('click', () => engine.resetView());
 
     if (exportPngBtn) {
