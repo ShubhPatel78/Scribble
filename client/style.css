@@ -439,7 +439,7 @@ body {
 }
 
 /* ========================================================
-   Main Game Arena (3-Column Layout)
+   Main Game Arena (2-Column Layout: Scoreboard & Maximized Canvas)
    ======================================================== */
 .game-arena {
     position: fixed;
@@ -448,7 +448,7 @@ body {
     left: 12px;
     right: 12px;
     display: grid;
-    grid-template-columns: 240px 1fr 310px;
+    grid-template-columns: 240px 1fr;
     grid-template-rows: 1fr;
     height: calc(100vh - 80px);
     gap: 12px;
@@ -885,11 +885,121 @@ body {
 }
 
 /* ========================================================
-   Right Sidebar: Live Chat & Guesses
+   Header Chat Toggle Button
+   ======================================================== */
+.btn-chat-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: 'Fredoka', 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: var(--button-shadow);
+    position: relative;
+    transition: all 0.15s ease;
+}
+
+.btn-chat-toggle:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 0 var(--border-color);
+    background: var(--bg-surface-hover);
+}
+
+.btn-chat-toggle.active {
+    background: var(--accent-color);
+    color: #ffffff;
+    border-color: #005bb5;
+}
+
+.chat-unread-badge {
+    background: #ef130b;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+    animation: chatBadgePulse 1.5s infinite;
+}
+
+@keyframes chatBadgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+/* ========================================================
+   Right Slide-In Drawer: Live Chat & Guesses
    ======================================================== */
 .game-chat-panel {
     display: flex;
     flex-direction: column;
+}
+
+.chat-drawer {
+    position: fixed;
+    top: 68px;
+    right: 12px;
+    bottom: 12px;
+    width: 340px;
+    max-width: calc(100vw - 24px);
+    background: var(--bg-surface);
+    border: var(--panel-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    animation: drawerSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.chat-drawer.hidden {
+    display: none !important;
+}
+
+@keyframes drawerSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.chat-close-btn {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-surface-alt);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.chat-close-btn:hover {
+    background: #ef130b;
+    color: #ffffff;
+    border-color: #b70d07;
+    transform: scale(1.08);
 }
 
 .chat-messages-feed {
@@ -904,7 +1014,7 @@ body {
 }
 
 .chat-msg {
-    padding: 3px 6px;
+    padding: 4px 7px;
     border-radius: 4px;
     word-break: break-word;
 }
@@ -1054,7 +1164,82 @@ body {
     cursor: pointer;
 }
 
-/* Floating In-Canvas Chat Bubble */
+/* ========================================================
+   Floating Live Chat Stream (Transparent Auto-Fading Popups)
+   ======================================================== */
+.floating-chat-stream {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+    z-index: 25;
+}
+
+.floating-chat-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    animation: chatItemFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+.floating-chat-item.fading-out {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+}
+
+.floating-chat-item.msg-correct_guess {
+    background: rgba(22, 101, 52, 0.9);
+    border-color: rgba(74, 222, 128, 0.6);
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.35);
+}
+
+.floating-chat-item.msg-close_guess {
+    background: rgba(161, 98, 7, 0.9);
+    border-color: rgba(250, 204, 21, 0.6);
+}
+
+.floating-chat-item.msg-system {
+    background: rgba(30, 41, 59, 0.85);
+    font-size: 11.5px;
+}
+
+.floating-chat-item .stream-author {
+    font-weight: 800;
+}
+
+.floating-chat-item .stream-text {
+    color: #f8fafc;
+}
+
+@keyframes chatItemFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(8px) scale(0.93);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Floating In-Canvas Chat Bubble (Legacy / High-Priority fallback) */
 .floating-chat-bubble {
     position: absolute;
     top: 14px;
@@ -1845,7 +2030,7 @@ body {
    ======================================================== */
 @media (max-width: 960px) {
     .game-arena {
-        grid-template-columns: 180px 1fr 240px;
+        grid-template-columns: 200px 1fr;
         gap: 8px;
         top: 64px;
         left: 8px;
@@ -1999,7 +2184,7 @@ body {
         font-size: 10px;
     }
 
-    /* Canvas */
+    /* Full-Screen Canvas on Mobile */
     .game-canvas-area {
         flex: 1;
         min-height: 0;
@@ -2045,60 +2230,75 @@ body {
         min-width: 28px;
     }
 
-    /* Chat Panel on Phone */
-    .game-chat-panel {
-        height: 125px;
-        min-height: 110px;
-        max-height: 140px;
-        flex-shrink: 0;
-        display: flex;
-        flex-direction: column;
-        border-radius: var(--radius-sm);
-        padding: 0;
-        overflow: hidden;
+    /* Floating Live Stream on Mobile */
+    .floating-chat-stream {
+        top: 6px;
+        left: 6px;
+        max-width: calc(100% - 12px);
     }
 
-    .game-chat-panel .sidebar-header {
+    .floating-chat-item {
+        font-size: 11.5px;
+        padding: 4px 10px;
+    }
+
+    /* Overlay Chat Drawer on Mobile */
+    .chat-drawer {
+        position: fixed;
+        top: 54px;
+        left: 6px;
+        right: 6px;
+        bottom: 6px;
+        width: auto;
+        max-width: calc(100vw - 12px);
+        height: auto;
+        max-height: none;
+        z-index: 100;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .chat-drawer .sidebar-header {
         display: flex;
-        height: 20px;
-        min-height: 20px;
-        padding: 0 6px;
+        height: 36px;
+        min-height: 36px;
+        padding: 0 8px;
         align-items: center;
+        justify-content: space-between;
     }
 
-    .game-chat-panel .sidebar-title {
-        font-size: 11px;
+    .chat-drawer .sidebar-title {
+        font-size: 13px;
     }
 
     .chat-messages-feed {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
-        padding: 3px 5px;
-        gap: 2px;
-        font-size: 11.5px;
+        padding: 6px 8px;
+        gap: 3px;
+        font-size: 12px;
     }
 
     .chat-input-row {
-        height: 36px;
-        min-height: 36px;
-        padding: 2px 4px;
-        gap: 3px;
+        height: 42px;
+        min-height: 42px;
+        padding: 4px 6px;
+        gap: 4px;
         align-items: center;
     }
 
     .chat-input {
-        height: 28px;
-        min-height: 28px;
-        padding: 3px 8px;
-        font-size: 13px;
+        height: 32px;
+        min-height: 32px;
+        padding: 4px 10px;
+        font-size: 14px;
     }
 
     .chat-send-btn {
-        padding: 0 12px;
-        font-size: 12px;
-        height: 28px;
-        min-height: 28px;
+        padding: 0 14px;
+        font-size: 13px;
+        height: 32px;
+        min-height: 32px;
     }
 }
 

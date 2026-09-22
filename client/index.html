@@ -67,6 +67,12 @@
                 ▶ Start Game
             </button>
 
+            <!-- Chat Drawer Toggle Button -->
+            <button id="chat-toggle-btn" class="btn-chat-toggle" title="Toggle Live Chat & Guesses">
+                💬 <span class="btn-text">Chat</span>
+                <span id="chat-unread-badge" class="chat-unread-badge hidden">0</span>
+            </button>
+
             <!-- Theme Switcher -->
             <div class="theme-dropdown-container">
                 <button id="theme-btn" class="theme-btn" title="Change Theme">
@@ -107,7 +113,7 @@
         </div>
     </header>
 
-    <!-- Main Game Arena Layout (Left: Scoreboard | Center: Canvas | Right: Chat) -->
+    <!-- Main Game Arena Layout (Left: Scoreboard | Center: Full-Width Canvas | Drawer: Chat) -->
     <div class="game-arena">
         <!-- Left Sidebar: Scoreboard -->
         <aside class="game-sidebar game-scoreboard">
@@ -120,12 +126,15 @@
             </div>
         </aside>
 
-        <!-- Center: Canvas Wrapper -->
+        <!-- Center: Maximized Canvas Area -->
         <section class="game-canvas-area" id="game-canvas-wrapper">
             <main id="viewport" class="canvas-viewport">
                 <canvas id="drawing-canvas"></canvas>
                 <canvas id="overlay-canvas"></canvas>
             </main>
+
+            <!-- Floating Live Chat Stream (Transparent auto-fading popups) -->
+            <div id="floating-chat-stream" class="floating-chat-stream"></div>
 
             <!-- Floating Zoom & Pan Controls (Mobile & Desktop) -->
             <div id="canvas-zoom-controls" class="floating-zoom-controls">
@@ -313,10 +322,11 @@
             </nav>
         </section>
 
-        <!-- Right Sidebar: Live Chat & Guessing Feed -->
-        <aside class="game-sidebar game-chat-panel">
+        <!-- Toggleable Slide-In Drawer: Live Chat & Guessing Feed -->
+        <aside id="game-chat-panel" class="game-sidebar game-chat-panel chat-drawer hidden">
             <div class="sidebar-header">
                 <span class="sidebar-title">💬 Live Chat & Guesses</span>
+                <button type="button" id="close-chat-btn" class="chat-close-btn" title="Close Chat (✕)">✕</button>
             </div>
             <div id="chat-messages" class="chat-messages-feed">
                 <div class="chat-msg msg-system">
