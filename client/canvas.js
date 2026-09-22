@@ -210,9 +210,12 @@ class CanvasEngine {
                 // Single finger drawing
                 e.preventDefault();
                 const world = this.screenToWorld(t.clientX, t.clientY);
+                const force = (t.force !== undefined && t.force > 0) ? t.force : 0.5;
+                const pointWithPressure = { x: world.x, y: world.y, pressure: force };
+
                 this.isInteracting = true;
                 this.activeShapeStart = world;
-                this.activeStrokePoints = [world];
+                this.activeStrokePoints = [pointWithPressure];
 
                 if (this.currentTool === 'fill-bucket') {
                     const opId = `op_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -231,8 +234,8 @@ class CanvasEngine {
                 }
 
                 if (this.currentTool === 'eraser') {
-                    this.lastEraserPoint = world;
-                    this._paintEraserSegment(world, world);
+                    this.lastEraserPoint = pointWithPressure;
+                    this._paintEraserSegment(pointWithPressure, pointWithPressure);
                 } else if (this.currentTool === 'brush') {
                     if (this.onLiveStroke) {
                         this.onLiveStroke({
@@ -296,13 +299,15 @@ class CanvasEngine {
                 e.preventDefault();
                 const t = e.touches[0];
                 const world = this.screenToWorld(t.clientX, t.clientY);
+                const force = (t.force !== undefined && t.force > 0) ? t.force : 0.5;
+                const pointWithPressure = { x: world.x, y: world.y, pressure: force };
 
                 if (this.onCursorMove) {
                     this.onCursorMove(world.x, world.y);
                 }
 
                 if (this.currentTool === 'brush') {
-                    this.activeStrokePoints.push(world);
+                    this.activeStrokePoints.push(pointWithPressure);
                     if (this.onLiveStroke && this.activeStrokePoints.length % 2 === 0) {
                         this.onLiveStroke({
                             type: 'brush',
@@ -314,11 +319,11 @@ class CanvasEngine {
                     }
                     this.renderOverlay();
                 } else if (this.currentTool === 'eraser') {
-                    this.activeStrokePoints.push(world);
-                    this._paintEraserSegment(this.lastEraserPoint || world, world);
-                    this.lastEraserPoint = world;
+                    this.activeStrokePoints.push(pointWithPressure);
+                    this._paintEraserSegment(this.lastEraserPoint || pointWithPressure, pointWithPressure);
+                    this.lastEraserPoint = pointWithPressure;
                 } else {
-                    this.activeStrokePoints = [this.activeShapeStart, world];
+                    this.activeStrokePoints = [this.activeShapeStart, pointWithPressure];
                     this.renderOverlay();
                 }
             }
@@ -419,9 +424,12 @@ class CanvasEngine {
             } catch (_) {}
 
             const world = this.screenToWorld(e.clientX, e.clientY);
+            const pressure = (e.pressure !== undefined && e.pressure > 0) ? e.pressure : 0.5;
+            const pointWithPressure = { x: world.x, y: world.y, pressure };
+
             this.isInteracting = true;
             this.activeShapeStart = world;
-            this.activeStrokePoints = [world];
+            this.activeStrokePoints = [pointWithPressure];
 
             if (this.currentTool === 'fill-bucket') {
                 const opId = `op_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -440,8 +448,8 @@ class CanvasEngine {
             }
 
             if (this.currentTool === 'eraser') {
-                this.lastEraserPoint = world;
-                this._paintEraserSegment(world, world);
+                this.lastEraserPoint = pointWithPressure;
+                this._paintEraserSegment(pointWithPressure, pointWithPressure);
             } else if (this.currentTool === 'brush') {
                 if (this.onLiveStroke) {
                     this.onLiveStroke({
@@ -468,6 +476,8 @@ class CanvasEngine {
             }
 
             const world = this.screenToWorld(e.clientX, e.clientY);
+            const pressure = (e.pressure !== undefined && e.pressure > 0) ? e.pressure : 0.5;
+            const pointWithPressure = { x: world.x, y: world.y, pressure };
 
             if (this.onCursorMove) {
                 this.onCursorMove(world.x, world.y);
@@ -476,7 +486,7 @@ class CanvasEngine {
             if (!this.isInteracting) return;
 
             if (this.currentTool === 'brush') {
-                this.activeStrokePoints.push(world);
+                this.activeStrokePoints.push(pointWithPressure);
                 if (this.onLiveStroke && this.activeStrokePoints.length % 2 === 0) {
                     this.onLiveStroke({
                         type: 'brush',
@@ -488,11 +498,11 @@ class CanvasEngine {
                 }
                 this.renderOverlay();
             } else if (this.currentTool === 'eraser') {
-                this.activeStrokePoints.push(world);
-                this._paintEraserSegment(this.lastEraserPoint || world, world);
-                this.lastEraserPoint = world;
+                this.activeStrokePoints.push(pointWithPressure);
+                this._paintEraserSegment(this.lastEraserPoint || pointWithPressure, pointWithPressure);
+                this.lastEraserPoint = pointWithPressure;
             } else {
-                this.activeStrokePoints = [this.activeShapeStart, world];
+                this.activeStrokePoints = [this.activeShapeStart, pointWithPressure];
                 this.renderOverlay();
             }
         });
@@ -578,16 +588,27 @@ class CanvasEngine {
         this.ctx.globalCompositeOperation = 'destination-out';
         this.ctx.strokeStyle = 'rgba(0,0,0,1)';
         this.ctx.fillStyle = 'rgba(0,0,0,1)';
-        this.ctx.lineWidth = (this.currentWidth || 4) * 2;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+        const size = (this.currentWidth || 4) * 2;
 
         if (from.x === to.x && from.y === to.y) {
             // Single click — paint a dot
             this.ctx.beginPath();
-            this.ctx.arc(from.x, from.y, this.ctx.lineWidth / 2, 0, Math.PI * 2);
+            this.ctx.arc(from.x, from.y, size / 2, 0, Math.PI * 2);
             this.ctx.fill();
+        } else if (typeof window !== 'undefined' && window.PerfectFreehand) {
+            const outline = window.PerfectFreehand.getStroke([from, to], {
+                size: size,
+                thinning: 0.2,
+                smoothing: 0.5,
+                simulatePressure: false,
+                start: { cap: true, taper: 0 },
+                end: { cap: true, taper: 0 }
+            });
+            window.PerfectFreehand.renderCatmullRomStroke(this.ctx, outline, true);
         } else {
+            this.ctx.lineWidth = size;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
             this.ctx.beginPath();
             this.ctx.moveTo(from.x, from.y);
             this.ctx.lineTo(to.x, to.y);
@@ -815,11 +836,25 @@ class CanvasEngine {
                 const pts = op.points;
                 if (!pts || pts.length === 0) break;
 
-                ctx.beginPath();
+                const strokeSize = (opType === 'eraser') ? ((op.width || 4) * 2) : (op.width || 4);
+
                 if (pts.length === 1) {
-                    ctx.arc(pts[0].x, pts[0].y, ctx.lineWidth / 2, 0, Math.PI * 2);
+                    ctx.beginPath();
+                    ctx.arc(pts[0].x, pts[0].y, strokeSize / 2, 0, Math.PI * 2);
                     ctx.fill();
+                } else if (typeof window !== 'undefined' && window.PerfectFreehand) {
+                    const outlinePoints = window.PerfectFreehand.getStroke(pts, {
+                        size: strokeSize,
+                        thinning: 0.45,
+                        smoothing: 0.55,
+                        streamline: 0.4,
+                        simulatePressure: true,
+                        start: { cap: true, taper: 0 },
+                        end: { cap: true, taper: 0 }
+                    });
+                    window.PerfectFreehand.renderCatmullRomStroke(ctx, outlinePoints, true);
                 } else {
+                    ctx.beginPath();
                     ctx.moveTo(pts[0].x, pts[0].y);
                     for (let i = 1; i < pts.length - 1; i++) {
                         const midX = (pts[i].x + pts[i + 1].x) / 2;
