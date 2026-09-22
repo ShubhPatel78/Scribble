@@ -301,9 +301,15 @@ class GameClient {
 
         if (this.floatingToolbar) {
             if (canDraw) {
-                this.floatingToolbar.classList.remove('disabled');
+                this.floatingToolbar.classList.remove('hidden', 'disabled');
             } else {
-                this.floatingToolbar.classList.add('disabled');
+                // During active match rounds, hide toolbar for guessers so canvas is 100% clean
+                if (this.gameState === 'DRAWING' || this.gameState === 'CHOOSING_WORD' || this.gameState === 'ROUND_END') {
+                    this.floatingToolbar.classList.add('hidden');
+                } else {
+                    this.floatingToolbar.classList.remove('hidden');
+                    this.floatingToolbar.classList.add('disabled');
+                }
             }
         }
 

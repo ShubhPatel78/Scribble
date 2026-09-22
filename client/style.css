@@ -108,8 +108,11 @@ body {
     color: var(--text-primary);
     overflow: hidden;
     height: 100vh;
+    height: 100dvh;
     width: 100vw;
     user-select: none;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ========================================================
@@ -1272,24 +1275,28 @@ body {
 
     /* Top Navigation Bar on Phone */
     .top-nav {
-        top: 4px;
-        left: 4px;
-        right: 4px;
+        position: relative;
+        top: 0;
+        left: 0;
+        right: 0;
+        margin: 3px 4px 2px 4px;
         height: auto;
-        min-height: 50px;
-        padding: 6px 8px;
-        gap: 6px;
+        min-height: 44px;
+        padding: 4px 6px;
+        gap: 4px;
         flex-wrap: wrap;
         border-radius: var(--radius-md);
+        flex-shrink: 0;
     }
 
     .nav-left {
-        gap: 6px;
+        gap: 4px;
         flex-wrap: wrap;
+        align-items: center;
     }
 
     .brand {
-        font-size: 16px;
+        font-size: 15px;
     }
 
     .brand-name {
@@ -1301,14 +1308,14 @@ body {
     }
 
     .game-status-pill {
-        padding: 2px 8px;
+        padding: 2px 6px;
         font-size: 11px;
     }
 
     .room-pill {
-        padding: 2px 6px;
+        padding: 2px 5px;
         font-size: 11px;
-        gap: 4px;
+        gap: 3px;
     }
 
     .room-label {
@@ -1321,7 +1328,7 @@ body {
     }
 
     .icon-btn-subtle {
-        padding: 3px 6px;
+        padding: 2px 5px;
         font-size: 12px;
     }
 
@@ -1330,11 +1337,11 @@ body {
         width: 100%;
         max-width: 100%;
         justify-content: center;
-        padding: 2px 0;
+        padding: 1px 0;
     }
 
     .game-word-hint {
-        font-size: 14px;
+        font-size: 13.5px;
         letter-spacing: 1px;
         justify-content: center;
     }
@@ -1349,7 +1356,7 @@ body {
     }
 
     .clue-drawer-word strong {
-        font-size: 15px;
+        font-size: 14px;
     }
 
     .nav-right {
@@ -1358,39 +1365,46 @@ body {
     }
 
     .btn-start-game {
-        padding: 5px 10px;
-        font-size: 12px;
+        padding: 4px 8px;
+        font-size: 11px;
     }
 
     .self-profile {
-        padding: 2px 6px;
+        padding: 2px 4px;
     }
 
     .self-username {
         display: none;
     }
 
-    /* Main Game Arena on Phone */
+    /* Main Game Arena on Phone (Flex container filling exact remaining height) */
     .game-arena {
+        position: relative;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0 4px 4px 4px;
+        flex: 1;
+        min-height: 0;
+        height: auto;
         display: flex;
         flex-direction: column;
-        top: 96px;
-        left: 4px;
-        right: 4px;
-        bottom: 4px;
-        height: calc(100vh - 100px);
-        gap: 4px;
+        gap: 3px;
+        overflow: hidden;
     }
 
     /* Scoreboard Ribbon */
     .game-scoreboard {
-        height: 48px;
-        min-height: 48px;
-        padding: 4px 6px;
+        height: 38px;
+        min-height: 38px;
+        max-height: 38px;
+        padding: 2px 4px;
         display: flex;
         align-items: center;
         overflow: hidden;
         border-radius: var(--radius-md);
+        flex-shrink: 0;
     }
 
     .sidebar-header {
@@ -1403,7 +1417,7 @@ body {
         align-items: center;
         overflow-x: auto;
         overflow-y: hidden;
-        gap: 6px;
+        gap: 5px;
         width: 100%;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
@@ -1414,33 +1428,33 @@ body {
     }
 
     .player-card {
-        padding: 3px 8px;
-        min-width: 105px;
-        height: 38px;
+        padding: 2px 6px;
+        min-width: 95px;
+        height: 32px;
         flex-shrink: 0;
-        gap: 6px;
+        gap: 4px;
         border-radius: var(--radius-full);
     }
 
     .player-avatar {
-        width: 26px;
-        height: 26px;
-        font-size: 12px;
+        width: 22px;
+        height: 22px;
+        font-size: 11px;
     }
 
     .player-name {
-        font-size: 11px;
-        max-width: 60px;
+        font-size: 10.5px;
+        max-width: 55px;
     }
 
     .player-score {
-        font-size: 10px;
+        font-size: 9.5px;
     }
 
-    /* Canvas Area */
+    /* Canvas Area (fills all space between scoreboard and chat) */
     .game-canvas-area {
         flex: 1;
-        min-height: 180px;
+        min-height: 0;
         position: relative;
         border-radius: var(--radius-md);
         overflow: hidden;
@@ -1449,10 +1463,10 @@ body {
     /* Mobile Floating Toolbar inside canvas */
     .floating-toolbar.game-toolbar {
         position: absolute;
-        bottom: 8px;
+        bottom: 6px;
         left: 50%;
         transform: translateX(-50%);
-        width: calc(100% - 12px);
+        width: calc(100% - 10px);
         max-width: 440px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -1460,8 +1474,15 @@ body {
         padding: 4px 8px;
         gap: 6px;
         border-radius: var(--radius-md);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
         z-index: 20;
+    }
+
+    [data-theme="dark"] .floating-toolbar.game-toolbar {
+        background: #0f172a;
+        border-color: #334155;
     }
 
     .floating-toolbar.game-toolbar::-webkit-scrollbar {
@@ -1469,44 +1490,47 @@ body {
     }
 
     .tool-btn, .action-btn {
-        width: 36px;
-        height: 36px;
-        min-width: 36px;
-        font-size: 16px;
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
     }
 
     .color-dot {
-        width: 22px;
-        height: 22px;
-        min-width: 22px;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
     }
 
     .stroke-slider {
-        width: 50px;
+        width: 45px;
     }
 
     .size-label {
-        font-size: 10px;
+        font-size: 9.5px;
     }
 
     .toggle-btn {
-        padding: 4px 8px;
-        font-size: 11px;
+        padding: 3px 6px;
+        font-size: 10.5px;
         white-space: nowrap;
     }
 
-    /* Live Chat / Guessing on Phone */
+    /* Live Chat / Guessing on Phone (Strictly fixed height with always-visible input) */
     .game-chat-panel {
-        height: 145px;
-        min-height: 130px;
-        max-height: 160px;
+        height: 130px;
+        min-height: 115px;
+        max-height: 145px;
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
         border-radius: var(--radius-md);
         padding: 0;
         background: var(--bg-surface);
-        border: 1px solid var(--border-color);
+        border: 1.5px solid var(--border-color);
         box-shadow: var(--shadow-sm);
         z-index: 25;
         overflow: hidden;
@@ -1514,9 +1538,9 @@ body {
 
     .game-chat-panel .sidebar-header {
         display: flex;
-        height: 26px;
-        min-height: 26px;
-        padding: 0 10px;
+        height: 22px;
+        min-height: 22px;
+        padding: 0 8px;
         align-items: center;
         background: var(--bg-surface-hover);
         border-bottom: 1px solid var(--border-color);
@@ -1529,34 +1553,39 @@ body {
 
     .chat-messages-feed {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
-        padding: 6px 8px;
-        gap: 4px;
-        font-size: 12px;
-        max-height: 70px;
+        padding: 4px 6px;
+        gap: 3px;
+        font-size: 11.5px;
         -webkit-overflow-scrolling: touch;
     }
 
     .chat-msg {
-        padding: 3px 6px;
-        font-size: 12px;
-        border-radius: 6px;
+        padding: 2px 5px;
+        font-size: 11.5px;
+        border-radius: 5px;
     }
 
     .chat-input-row {
         display: flex;
-        padding: 6px 8px;
-        gap: 6px;
+        height: 38px;
+        min-height: 38px;
+        flex-shrink: 0;
+        padding: 3px 6px;
+        gap: 4px;
         background: var(--bg-surface-hover);
         border-top: 1px solid var(--border-color);
+        align-items: center;
     }
 
     .chat-input {
         flex: 1;
-        padding: 8px 12px;
+        height: 30px;
+        min-height: 30px;
+        padding: 4px 10px;
         font-size: 14px;
-        height: 36px;
-        border-radius: 8px;
+        border-radius: 6px;
         border: 1px solid var(--border-color);
         background: var(--bg-surface);
         color: var(--text-primary);
@@ -1564,11 +1593,12 @@ body {
     }
 
     .chat-send-btn {
-        padding: 0 16px;
-        font-size: 13px;
+        padding: 0 14px;
+        font-size: 12px;
         font-weight: 700;
-        height: 36px;
-        border-radius: 8px;
+        height: 30px;
+        min-height: 30px;
+        border-radius: 6px;
         background: var(--accent-color);
         color: #ffffff;
         border: none;
@@ -1578,13 +1608,13 @@ body {
 
     /* Word Choice Modal on Phone */
     .word-choice-card {
-        padding: 18px 14px;
+        padding: 16px 12px;
         max-width: 94vw;
         border-radius: 16px;
     }
 
     .word-choice-card h2 {
-        font-size: 18px;
+        font-size: 17px;
     }
 
     .word-options-grid {
@@ -1594,23 +1624,23 @@ body {
     }
 
     .word-choice-btn {
-        padding: 12px;
-        font-size: 16px;
-        min-height: 48px;
+        padding: 11px;
+        font-size: 15px;
+        min-height: 44px;
     }
 
     /* Podium Modal on Phone */
     .podium-card {
-        padding: 20px 14px;
+        padding: 18px 12px;
         max-width: 94vw;
     }
 
     .podium-title {
-        font-size: 19px;
+        font-size: 18px;
     }
 
     .podium-column {
-        width: 75px;
+        width: 70px;
     }
 
     .podium-stand {
@@ -1619,17 +1649,17 @@ body {
 
     /* Login Portal on Phone */
     .login-portal-card {
-        padding: 20px 16px;
+        padding: 18px 14px;
         max-width: 96vw;
         border-radius: 18px;
     }
 
     .portal-logo-icon {
-        font-size: 1.6rem;
+        font-size: 1.5rem;
     }
 
     .portal-logo h1 {
-        font-size: 1.6rem;
+        font-size: 1.5rem;
     }
 
     .portal-tagline {
@@ -1637,25 +1667,25 @@ body {
     }
 
     .login-profile-section {
-        padding: 12px;
-        gap: 8px;
+        padding: 10px;
+        gap: 6px;
     }
 
     .login-avatar-circle {
-        width: 58px;
-        height: 58px;
-        font-size: 1.7rem;
+        width: 54px;
+        height: 54px;
+        font-size: 1.6rem;
     }
 
     .avatar-chip {
-        width: 32px;
-        height: 32px;
-        font-size: 1rem;
+        width: 30px;
+        height: 30px;
+        font-size: 0.95rem;
     }
 
     .portal-tab-btn {
-        padding: 8px 6px;
-        font-size: 0.84rem;
+        padding: 7px 5px;
+        font-size: 0.82rem;
     }
 
     .timer-chips-grid {
@@ -1664,8 +1694,8 @@ body {
     }
 
     .timer-chip {
-        padding: 6px 4px;
-        font-size: 0.78rem;
+        padding: 5px 3px;
+        font-size: 0.76rem;
     }
 
     .rounds-chips-grid {
@@ -1674,34 +1704,20 @@ body {
     }
 
     .rounds-chip {
-        padding: 6px 2px;
-        font-size: 0.75rem;
+        padding: 5px 2px;
+        font-size: 0.74rem;
     }
 
     .btn-portal-action {
-        padding: 11px 14px;
-        font-size: 0.95rem;
+        padding: 10px 12px;
+        font-size: 0.92rem;
     }
 }
 
 @media (max-width: 480px) {
-    .game-arena {
-        top: 92px;
-        height: calc(100vh - 96px);
-    }
-
-    .game-scoreboard {
-        height: 44px;
-        min-height: 44px;
-    }
-
     .game-chat-panel {
-        height: 115px;
-        min-height: 100px;
-    }
-
-    .timer-chips-grid {
-        grid-template-columns: repeat(3, 1fr);
+        height: 125px;
+        min-height: 110px;
     }
 }
 
