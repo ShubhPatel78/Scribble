@@ -137,3 +137,24 @@ test('GameEngine - winner podium ranking', () => {
 
     game.clearTimer();
 });
+
+test('GameEngine - custom timer and room settings', () => {
+    const game = new GameEngine({ drawTime: 45, totalRounds: 5 });
+    assert.equal(game.drawTime, 45);
+    assert.equal(game.totalRounds, 5);
+
+    game.addPlayer({ id: 'u1', username: 'Alice', color: '#ff0000' });
+    game.addPlayer({ id: 'u2', username: 'Bob', color: '#00ff00' });
+
+    // Host updates settings
+    const updateRes = game.updateSettings('u1', { drawTime: 90, totalRounds: 2 });
+    assert.equal(updateRes.success, true);
+    assert.equal(game.drawTime, 90);
+    assert.equal(game.totalRounds, 2);
+
+    // Non-host cannot update settings
+    const nonHostRes = game.updateSettings('u2', { drawTime: 30 });
+    assert.ok(nonHostRes.error);
+
+    game.clearTimer();
+});

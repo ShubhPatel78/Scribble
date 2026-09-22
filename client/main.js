@@ -81,6 +81,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportJsonBtn = document.getElementById('export-json-btn');
     const clearBoardBtn = document.getElementById('clear-board-btn');
 
+    // Login Screen Portal Elements
+    const loginScreen = document.getElementById('login-screen');
+    const loginUsernameInput = document.getElementById('login-username-input');
+    const loginAvatarPreview = document.getElementById('login-avatar-preview');
+    const loginAvatarEmoji = document.getElementById('login-avatar-emoji');
+    const loginRandomizeAvatarBtn = document.getElementById('login-randomize-avatar-btn');
+    const avatarChips = document.querySelectorAll('#avatar-emoji-picker .avatar-chip');
+
+    const tabCreateRoom = document.getElementById('tab-create-room');
+    const tabJoinRoom = document.getElementById('tab-join-room');
+    const panelCreateRoom = document.getElementById('panel-create-room');
+    const panelJoinRoom = document.getElementById('panel-join-room');
+
+    const loginCreateForm = document.getElementById('login-create-form');
+    const createRoomNameInput = document.getElementById('create-room-name-input');
+    const createTimerSlider = document.getElementById('create-timer-slider');
+    const createTimerDisplay = document.getElementById('create-timer-display');
+    const createRoundsDisplay = document.getElementById('create-rounds-display');
+    const createTimerChips = document.querySelectorAll('#create-timer-chips .timer-chip');
+    const createRoundsChips = document.querySelectorAll('#create-rounds-chips .rounds-chip');
+
+    const loginJoinForm = document.getElementById('login-join-form');
+    const loginJoinCodeInput = document.getElementById('login-join-code-input');
+    const loginInviteBanner = document.getElementById('login-invite-banner');
+    const loginInviteCodeDisplay = document.getElementById('login-invite-code-display');
+
     // Modals & Toast
     const newRoomModal = document.getElementById('new-room-modal');
     const newRoomForm = document.getElementById('new-room-form');
@@ -105,6 +131,169 @@ document.addEventListener('DOMContentLoaded', () => {
         toastTimer = setTimeout(() => {
             toast.classList.add('hidden');
         }, 2400);
+    }
+
+    // -------------------------------------------------------------
+    // Avatar & Identity Setup
+    // -------------------------------------------------------------
+    const AVATAR_COLORS = [
+        '#EF4444', '#F97316', '#F59E0B', '#10B981',
+        '#06B6D4', '#3B82F6', '#6366F1', '#8B5CF6',
+        '#EC4899', '#14B8A6'
+    ];
+    const AVATAR_EMOJIS = ['🎨', '🐱', '🐶', '🦊', '🐼', '🦁', '🦄', '🤖', '👻', '🚀', '👑', '🍕', '🎮', '⚡'];
+
+    let selectedEmoji = localStorage.getItem('canvas_avatar') || '🎨';
+    let selectedColor = localStorage.getItem('canvas_avatar_color') || AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+
+    function updateAvatarUI() {
+        if (loginAvatarPreview) loginAvatarPreview.style.backgroundColor = selectedColor;
+        if (loginAvatarEmoji) loginAvatarEmoji.textContent = selectedEmoji;
+        avatarChips.forEach(chip => {
+            chip.classList.toggle('active', chip.dataset.emoji === selectedEmoji);
+        });
+    }
+
+    if (loginRandomizeAvatarBtn) {
+        loginRandomizeAvatarBtn.addEventListener('click', () => {
+            selectedEmoji = AVATAR_EMOJIS[Math.floor(Math.random() * AVATAR_EMOJIS.length)];
+            selectedColor = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+            localStorage.setItem('canvas_avatar', selectedEmoji);
+            localStorage.setItem('canvas_avatar_color', selectedColor);
+            updateAvatarUI();
+        });
+    }
+
+    avatarChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            selectedEmoji = chip.dataset.emoji;
+            localStorage.setItem('canvas_avatar', selectedEmoji);
+            updateAvatarUI();
+        });
+    });
+
+    updateAvatarUI();
+
+    // Portal Tabs
+    if (tabCreateRoom && tabJoinRoom) {
+        tabCreateRoom.addEventListener('click', () => {
+            tabCreateRoom.classList.add('active');
+            tabJoinRoom.classList.remove('active');
+            if (panelCreateRoom) panelCreateRoom.classList.add('active');
+            if (panelJoinRoom) panelJoinRoom.classList.remove('active');
+        });
+
+        tabJoinRoom.addEventListener('click', () => {
+            tabJoinRoom.classList.add('active');
+            tabCreateRoom.classList.remove('active');
+            if (panelJoinRoom) panelJoinRoom.classList.add('active');
+            if (panelCreateRoom) panelCreateRoom.classList.remove('active');
+        });
+    }
+
+    // Portal Custom Timer Slider & Chips
+    if (createTimerSlider && createTimerDisplay) {
+        createTimerSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            createTimerDisplay.textContent = `${val}s`;
+            createTimerChips.forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.time === val);
+            });
+        });
+    }
+
+    createTimerChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const val = chip.dataset.time;
+            if (createTimerSlider) createTimerSlider.value = val;
+            if (createTimerDisplay) createTimerDisplay.textContent = `${val}s`;
+            createTimerChips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+        });
+    });
+
+    createRoundsChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const val = chip.dataset.rounds;
+            if (createRoundsDisplay) createRoundsDisplay.textContent = `${val} Rounds`;
+            createRoundsChips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+        });
+    });
+
+    // Populate Portal Defaults
+    const isExplicitPlay = urlParams.get('play') === '1';
+    const hasRoomParam = Boolean(urlParams.get('room') || pathRoom || hash);
+
+    if (loginUsernameInput) {
+        loginUsernameInput.value = initialUsername || `Artist ${Math.floor(Math.random() * 900) + 100}`;
+    }
+
+    if (hasRoomParam && !isExplicitPlay) {
+        // Direct link invite -> switch to Join tab
+        if (tabJoinRoom) tabJoinRoom.click();
+        if (loginJoinCodeInput) loginJoinCodeInput.value = initialRoom;
+        if (loginInviteBanner && loginInviteCodeDisplay) {
+            loginInviteCodeDisplay.textContent = initialRoom;
+            loginInviteBanner.classList.remove('hidden');
+        }
+    }
+
+    // Handle Portal Create Room
+    if (loginCreateForm) {
+        loginCreateForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nickname = (loginUsernameInput?.value || '').trim() || 'Artist';
+            const roomName = (createRoomNameInput?.value || '').trim() || 'Scribble Room';
+            const drawTime = parseInt(createTimerSlider?.value || 60, 10);
+            const activeRounds = document.querySelector('#create-rounds-chips .rounds-chip.active');
+            const totalRounds = parseInt(activeRounds?.dataset?.rounds || 3, 10);
+
+            localStorage.setItem('canvas_username', nickname);
+            localStorage.setItem('canvas_avatar', selectedEmoji);
+            localStorage.setItem('canvas_avatar_color', selectedColor);
+
+            try {
+                const res = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: roomName, drawTime, totalRounds })
+                });
+                const data = await res.json();
+                if (data.success && data.code) {
+                    window.location.href = `/?room=${encodeURIComponent(data.code)}&username=${encodeURIComponent(nickname)}&play=1`;
+                }
+            } catch (err) {
+                console.error('Failed creating room via API:', err);
+                const fallbackCode = generateRoomCode(6);
+                window.location.href = `/?room=${encodeURIComponent(fallbackCode)}&username=${encodeURIComponent(nickname)}&play=1`;
+            }
+        });
+    }
+
+    // Handle Portal Join Room
+    if (loginJoinForm) {
+        loginJoinForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nickname = (loginUsernameInput?.value || '').trim() || 'Artist';
+            let rawInput = (loginJoinCodeInput?.value || '').trim();
+            if (!rawInput) return;
+
+            let targetCode = rawInput;
+            try {
+                if (rawInput.includes('://') || rawInput.includes('?room=') || rawInput.includes('/room/')) {
+                    const parsed = new URL(rawInput, window.location.origin);
+                    targetCode = parsed.searchParams.get('room') || parsed.pathname.replace('/room/', '') || rawInput;
+                }
+            } catch (_) {}
+
+            targetCode = targetCode.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+            localStorage.setItem('canvas_username', nickname);
+            localStorage.setItem('canvas_avatar', selectedEmoji);
+            localStorage.setItem('canvas_avatar_color', selectedColor);
+
+            window.location.href = `/?room=${encodeURIComponent(targetCode)}&username=${encodeURIComponent(nickname)}&play=1`;
+        });
     }
 
     // 2. Initialize Engine & Network Client
@@ -154,7 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (selfAvatar) {
             selfAvatar.style.backgroundColor = data.color;
-            selfAvatar.textContent = (data.username || 'U')[0].toUpperCase();
+            const savedAvatar = localStorage.getItem('canvas_avatar');
+            selfAvatar.textContent = savedAvatar || (data.username || 'U')[0].toUpperCase();
         }
         if (selfName) selfName.textContent = `${data.username} (You)`;
         if (roomBadge) roomBadge.textContent = data.roomId;
@@ -646,6 +836,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Connect WebSocket
-    client.connect();
+    // Connect WebSocket if playing
+    if (isExplicitPlay) {
+        if (loginScreen) loginScreen.classList.add('hidden');
+        client.connect();
+    } else {
+        if (loginScreen) loginScreen.classList.remove('hidden');
+    }
 });

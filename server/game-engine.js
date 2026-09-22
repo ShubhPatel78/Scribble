@@ -21,8 +21,8 @@ const GAME_STATES = {
 
 class GameEngine {
     constructor(options = {}) {
-        this.totalRounds = options.totalRounds || 3;
-        this.drawTime = options.drawTime || 60; // seconds
+        this.totalRounds = Math.max(1, Math.min(10, parseInt(options.totalRounds, 10) || 3));
+        this.drawTime = Math.max(15, Math.min(240, parseInt(options.drawTime, 10) || 60)); // seconds
         this.chooseWordTime = options.chooseWordTime || 15; // seconds
         this.roundEndTime = options.roundEndTime || 5; // seconds
 
@@ -49,6 +49,40 @@ class GameEngine {
         this.onBroadcast = null; // (event, payload, excludeWs) => void
         this.onSend = null;      // (userId, event, payload) => void
         this.onClearCanvas = null; // () => void
+    }
+
+    /**
+     * Updates game rules (drawTime, totalRounds) if in LOBBY or GAME_OVER state.
+     */
+    updateSettings(userId, settings = {}) {
+        const player = this.players.get(userId);
+        if (userId && (!player || !player.isHost)) {
+            return { error: 'Only the host can adjust room settings.' };
+        }
+        if (this.state !== GAME_STATES.LOBBY && this.state !== GAME_STATES.GAME_OVER) {
+            return { error: 'Settings can only be changed before the match starts.' };
+        }
+
+        if (settings.drawTime !== undefined) {
+            const dt = parseInt(settings.drawTime, 10);
+            if (!isNaN(dt)) {
+                this.drawTime = Math.max(15, Math.min(240, dt));
+            }
+        }
+        if (settings.totalRounds !== undefined) {
+            const tr = parseInt(settings.totalRounds, 10);
+            if (!isNaN(tr)) {
+                this.totalRounds = Math.max(1, Math.min(10, tr));
+            }
+        }
+
+        this.broadcastGameState();
+        this.broadcastChat({
+            type: 'system',
+            text: `⚙️ Room settings updated: ${this.drawTime}s draw timer, ${this.totalRounds} rounds.`,
+            color: '#3B82F6'
+        });
+        return { success: true, drawTime: this.drawTime, totalRounds: this.totalRounds };
     }
 
     /**
@@ -474,6 +508,7 @@ class GameEngine {
             state: this.state,
             round: this.currentRound,
             totalRounds: this.totalRounds,
+            drawTime: this.drawTime,
             drawerId: this.currentDrawerId,
             drawerName: this.players.get(this.currentDrawerId)?.username || '',
             wordClue: this.getWordClue(),

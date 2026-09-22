@@ -55,6 +55,9 @@
 
         <!-- Right: Actions, Theme & Profile -->
         <div class="nav-right">
+            <button id="room-settings-btn" class="icon-btn-subtle hidden" title="Adjust Draw Timer & Rounds">
+                ⚙️ <span class="btn-text">Settings</span>
+            </button>
             <button id="start-game-btn" class="btn-start-game hidden" title="Start the Scribble match!">
                 ▶ Start Game
             </button>
@@ -241,7 +244,188 @@
     <!-- Eraser Cursor (lightweight DOM element) -->
     <div id="eraser-cursor" class="eraser-cursor hidden"></div>
 
-    <!-- Modal: Create New Room -->
+    <!-- Login / Welcome Room Portal Screen -->
+    <div id="login-screen" class="login-portal-backdrop">
+        <div class="login-portal-card">
+            <!-- Brand Header -->
+            <div class="login-portal-header">
+                <div class="portal-logo">
+                    <span class="portal-logo-icon">🎨</span>
+                    <h1>Scribble</h1>
+                </div>
+                <p class="portal-tagline">Multiplayer Drawing & Guessing Game</p>
+            </div>
+
+            <!-- Profile / Avatar Customization -->
+            <div class="login-profile-section">
+                <div class="avatar-preview-box">
+                    <div id="login-avatar-preview" class="login-avatar-circle" style="background: #3B82F6">
+                        <span id="login-avatar-emoji">🎨</span>
+                    </div>
+                    <button type="button" id="login-randomize-avatar-btn" class="avatar-random-btn" title="Randomize Avatar & Color">
+                        🎲
+                    </button>
+                </div>
+
+                <div class="login-input-group nickname-group">
+                    <label for="login-username-input">Player Nickname</label>
+                    <input type="text" id="login-username-input" placeholder="Enter your name..." maxlength="25" autocomplete="off" required>
+                </div>
+
+                <!-- Avatar Emoji Quick Picker -->
+                <div class="avatar-emoji-picker" id="avatar-emoji-picker">
+                    <button type="button" class="avatar-chip active" data-emoji="🎨">🎨</button>
+                    <button type="button" class="avatar-chip" data-emoji="🐱">🐱</button>
+                    <button type="button" class="avatar-chip" data-emoji="🐶">🐶</button>
+                    <button type="button" class="avatar-chip" data-emoji="🦊">🦊</button>
+                    <button type="button" class="avatar-chip" data-emoji="🐼">🐼</button>
+                    <button type="button" class="avatar-chip" data-emoji="🦁">🦁</button>
+                    <button type="button" class="avatar-chip" data-emoji="🦄">🦄</button>
+                    <button type="button" class="avatar-chip" data-emoji="🤖">🤖</button>
+                    <button type="button" class="avatar-chip" data-emoji="👻">👻</button>
+                    <button type="button" class="avatar-chip" data-emoji="🚀">🚀</button>
+                    <button type="button" class="avatar-chip" data-emoji="👑">👑</button>
+                    <button type="button" class="avatar-chip" data-emoji="🍕">🍕</button>
+                    <button type="button" class="avatar-chip" data-emoji="🎮">🎮</button>
+                    <button type="button" class="avatar-chip" data-emoji="⚡">⚡</button>
+                </div>
+            </div>
+
+            <!-- Mode Switcher Tabs: Create Room vs Join Room -->
+            <div class="portal-tabs">
+                <button type="button" id="tab-create-room" class="portal-tab-btn active">
+                    ✨ Create Room
+                </button>
+                <button type="button" id="tab-join-room" class="portal-tab-btn">
+                    🚪 Join Room
+                </button>
+            </div>
+
+            <!-- Tab Content 1: Create Room Flow -->
+            <div id="panel-create-room" class="portal-tab-panel active">
+                <form id="login-create-form">
+                    <div class="login-input-group">
+                        <label for="create-room-name-input">Room Name (Optional)</label>
+                        <input type="text" id="create-room-name-input" placeholder="e.g. Friday Fun, Artists Club" maxlength="40">
+                    </div>
+
+                    <!-- Custom Timer Section -->
+                    <div class="portal-setting-block">
+                        <div class="setting-title-row">
+                            <label>⏱️ Draw Timer per Turn</label>
+                            <span id="create-timer-display" class="setting-badge-value">60s</span>
+                        </div>
+                        
+                        <div class="timer-chips-grid" id="create-timer-chips">
+                            <button type="button" class="timer-chip" data-time="30">30s <span>(Blitz)</span></button>
+                            <button type="button" class="timer-chip" data-time="45">45s</button>
+                            <button type="button" class="timer-chip active" data-time="60">60s <span>(Default)</span></button>
+                            <button type="button" class="timer-chip" data-time="80">80s <span>(Classic)</span></button>
+                            <button type="button" class="timer-chip" data-time="90">90s</button>
+                            <button type="button" class="timer-chip" data-time="120">120s <span>(Relaxed)</span></button>
+                        </div>
+
+                        <div class="custom-slider-row">
+                            <input type="range" id="create-timer-slider" min="15" max="240" step="5" value="60" class="portal-slider">
+                        </div>
+                    </div>
+
+                    <!-- Total Rounds Section -->
+                    <div class="portal-setting-block">
+                        <div class="setting-title-row">
+                            <label>🔄 Total Rounds</label>
+                            <span id="create-rounds-display" class="setting-badge-value">3 Rounds</span>
+                        </div>
+                        <div class="rounds-chips-grid" id="create-rounds-chips">
+                            <button type="button" class="rounds-chip" data-rounds="2">2 Rounds</button>
+                            <button type="button" class="rounds-chip active" data-rounds="3">3 Rounds</button>
+                            <button type="button" class="rounds-chip" data-rounds="5">5 Rounds</button>
+                            <button type="button" class="rounds-chip" data-rounds="8">8 Rounds</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="login-create-submit-btn" class="btn-primary btn-portal-action">
+                        🚀 Create & Enter Room
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tab Content 2: Join Room Flow -->
+            <div id="panel-join-room" class="portal-tab-panel">
+                <form id="login-join-form">
+                    <div id="login-invite-banner" class="invite-banner hidden">
+                        <span class="banner-icon">💌</span>
+                        <div class="banner-text">
+                            <span class="banner-sub">Invited to Room</span>
+                            <span id="login-invite-code-display" class="banner-code">...</span>
+                        </div>
+                    </div>
+
+                    <div class="login-input-group">
+                        <label for="login-join-code-input">Room Code or Invite Link</label>
+                        <input type="text" id="login-join-code-input" placeholder="e.g. K9X2P4 or paste link" required autocomplete="off">
+                    </div>
+
+                    <p class="join-portal-hint">
+                        💡 Ask your friend for their 6-character room code or paste the direct link.
+                    </p>
+
+                    <button type="submit" id="login-join-submit-btn" class="btn-primary btn-portal-action">
+                        🚪 Join Scribble Match
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Host Room Settings Modal (Lobby) -->
+    <div id="room-settings-modal" class="modal-backdrop hidden">
+        <div class="modal-card settings-card">
+            <h3>⚙️ Room & Match Settings</h3>
+            <p>Customize the turn timer and total rounds for all players in this room.</p>
+            <form id="room-settings-form">
+                <!-- Timer Customization -->
+                <div class="portal-setting-block">
+                    <div class="setting-title-row">
+                        <label>⏱️ Draw Timer per Turn</label>
+                        <span id="settings-timer-display" class="setting-badge-value">60s</span>
+                    </div>
+                    <div class="timer-chips-grid" id="modal-timer-chips">
+                        <button type="button" class="timer-chip" data-time="30">30s</button>
+                        <button type="button" class="timer-chip" data-time="45">45s</button>
+                        <button type="button" class="timer-chip active" data-time="60">60s</button>
+                        <button type="button" class="timer-chip" data-time="80">80s</button>
+                        <button type="button" class="timer-chip" data-time="90">90s</button>
+                        <button type="button" class="timer-chip" data-time="120">120s</button>
+                    </div>
+                    <div class="custom-slider-row">
+                        <input type="range" id="settings-timer-slider" min="15" max="240" step="5" value="60" class="portal-slider">
+                    </div>
+                </div>
+
+                <!-- Rounds Customization -->
+                <div class="portal-setting-block">
+                    <div class="setting-title-row">
+                        <label>🔄 Total Rounds</label>
+                        <span id="settings-rounds-display" class="setting-badge-value">3 Rounds</span>
+                    </div>
+                    <div class="rounds-chips-grid" id="modal-rounds-chips">
+                        <button type="button" class="rounds-chip" data-rounds="2">2 Rounds</button>
+                        <button type="button" class="rounds-chip active" data-rounds="3">3 Rounds</button>
+                        <button type="button" class="rounds-chip" data-rounds="5">5 Rounds</button>
+                        <button type="button" class="rounds-chip" data-rounds="8">8 Rounds</button>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="settings-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Apply Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create New Room (Quick Modal from Nav) -->
     <div id="new-room-modal" class="modal-backdrop hidden">
         <div class="modal-card">
             <h3>🎨 Create New Scribble Room</h3>
@@ -259,7 +443,7 @@
         </div>
     </div>
 
-    <!-- Modal: Join Room with Code or Link -->
+    <!-- Modal: Join Room with Code or Link (Quick Modal from Nav) -->
     <div id="join-room-modal" class="modal-backdrop hidden">
         <div class="modal-card">
             <h3>🚪 Join Scribble Room</h3>

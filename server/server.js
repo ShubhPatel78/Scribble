@@ -36,11 +36,14 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Create a new room with a 6-character code
+// Create a new room with a 6-character code and optional custom settings
 app.post('/api/rooms', async (req, res) => {
     try {
         const roomName = req.body.name || 'Untitled Canvas';
-        const newRoom = await roomManager.createNewRoom(roomName);
+        const drawTime = req.body.drawTime ? parseInt(req.body.drawTime, 10) : undefined;
+        const totalRounds = req.body.totalRounds ? parseInt(req.body.totalRounds, 10) : undefined;
+
+        const newRoom = await roomManager.createNewRoom(roomName, { drawTime, totalRounds });
 
         const protocol = req.headers['x-forwarded-proto'] || req.protocol;
         const host = req.get('host');
@@ -50,6 +53,8 @@ app.post('/api/rooms', async (req, res) => {
             success: true,
             code: newRoom.code,
             name: newRoom.name,
+            drawTime: newRoom.drawTime,
+            totalRounds: newRoom.totalRounds,
             url: shareUrl
         });
     } catch (err) {
@@ -138,6 +143,7 @@ wss.on('connection', async (ws, req) => {
                 state: room.game.state,
                 round: room.game.currentRound,
                 totalRounds: room.game.totalRounds,
+                drawTime: room.game.drawTime,
                 drawerId: room.game.currentDrawerId,
                 drawerName: room.game.players.get(room.game.currentDrawerId)?.username || '',
                 wordClue: room.game.getWordClue(),
@@ -196,6 +202,7 @@ wss.on('connection', async (ws, req) => {
                                 state: newRoom.game.state,
                                 round: newRoom.game.currentRound,
                                 totalRounds: newRoom.game.totalRounds,
+                                drawTime: newRoom.game.drawTime,
                                 drawerId: newRoom.game.currentDrawerId,
                                 drawerName: newRoom.game.players.get(newRoom.game.currentDrawerId)?.username || '',
                                 wordClue: newRoom.game.getWordClue(),
@@ -210,6 +217,23 @@ wss.on('connection', async (ws, req) => {
                             user: { id: userId, username, color: userColor },
                             users: roomManager.getUsers(currentRoomId)
                         }, ws);
+                    }
+                    break;
+                }
+
+                case 'game:settings': {
+                    if (data.settings) {
+                        const result = activeRoom.game.updateSettings(userId, data.settings);
+                        if (result && result.error) {
+                            ws.send(JSON.stringify({
+                                type: 'chat:message',
+                                message: {
+                                    type: 'system',
+                                    text: `⚠️ ${result.error}`,
+                                    color: '#EF4444'
+                                }
+                            }));
+                        }
                     }
                     break;
                 }

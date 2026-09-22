@@ -22,6 +22,7 @@ class GameClient {
         this.isHost = false;
 
         // Cache DOM Elements
+        this.drawTime = 60;
         this.initDOMElements();
         this.bindEvents();
         this.updateDrawerPermissions();
@@ -35,6 +36,7 @@ class GameClient {
         this.wordClueContainer = document.getElementById('game-word-clue');
         this.wordHintText = document.getElementById('game-word-hint');
         this.startGameBtn = document.getElementById('start-game-btn');
+        this.roomSettingsBtn = document.getElementById('room-settings-btn');
 
         // Scoreboard
         this.playersList = document.getElementById('game-players-list');
@@ -55,6 +57,16 @@ class GameClient {
         this.podiumContainer = document.getElementById('podium-container');
         this.playAgainBtn = document.getElementById('play-again-btn');
 
+        // Room Settings Modal (Lobby)
+        this.settingsModal = document.getElementById('room-settings-modal');
+        this.settingsForm = document.getElementById('room-settings-form');
+        this.settingsCancelBtn = document.getElementById('settings-cancel-btn');
+        this.settingsTimerSlider = document.getElementById('settings-timer-slider');
+        this.settingsTimerDisplay = document.getElementById('settings-timer-display');
+        this.settingsRoundsDisplay = document.getElementById('settings-rounds-display');
+        this.modalTimerChips = document.querySelectorAll('#modal-timer-chips .timer-chip');
+        this.modalRoundsChips = document.querySelectorAll('#modal-rounds-chips .rounds-chip');
+
         this.floatingToolbar = document.querySelector('.floating-toolbar');
         this.viewport = document.getElementById('viewport');
     }
@@ -64,6 +76,61 @@ class GameClient {
         if (this.startGameBtn) {
             this.startGameBtn.addEventListener('click', () => {
                 this.client.startGame();
+            });
+        }
+
+        // Room Settings Button (Host only)
+        if (this.roomSettingsBtn && this.settingsModal) {
+            this.roomSettingsBtn.addEventListener('click', () => {
+                this.openSettingsModal();
+            });
+        }
+
+        if (this.settingsCancelBtn && this.settingsModal) {
+            this.settingsCancelBtn.addEventListener('click', () => {
+                this.settingsModal.classList.add('hidden');
+            });
+        }
+
+        // Settings Modal Form Controls
+        if (this.settingsTimerSlider && this.settingsTimerDisplay) {
+            this.settingsTimerSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                this.settingsTimerDisplay.textContent = `${val}s`;
+                this.modalTimerChips.forEach(chip => {
+                    chip.classList.toggle('active', chip.dataset.time === val);
+                });
+            });
+        }
+
+        this.modalTimerChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const val = chip.dataset.time;
+                if (this.settingsTimerSlider) this.settingsTimerSlider.value = val;
+                if (this.settingsTimerDisplay) this.settingsTimerDisplay.textContent = `${val}s`;
+                this.modalTimerChips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+            });
+        });
+
+        this.modalRoundsChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const val = chip.dataset.rounds;
+                if (this.settingsRoundsDisplay) this.settingsRoundsDisplay.textContent = `${val} Rounds`;
+                this.modalRoundsChips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+            });
+        });
+
+        if (this.settingsForm) {
+            this.settingsForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const drawTime = parseInt(this.settingsTimerSlider?.value || 60, 10);
+                const activeRoundsChip = document.querySelector('#modal-rounds-chips .rounds-chip.active');
+                const totalRounds = parseInt(activeRoundsChip?.dataset?.rounds || 3, 10);
+
+                this.client.updateSettings({ drawTime, totalRounds });
+                if (this.settingsModal) this.settingsModal.classList.add('hidden');
             });
         }
 
@@ -96,10 +163,27 @@ class GameClient {
         this.client.onGameOver = (data) => this.showPodium(data.podium);
     }
 
+    openSettingsModal() {
+        if (!this.settingsModal) return;
+        if (this.settingsTimerSlider) this.settingsTimerSlider.value = this.drawTime;
+        if (this.settingsTimerDisplay) this.settingsTimerDisplay.textContent = `${this.drawTime}s`;
+        this.modalTimerChips.forEach(chip => {
+            chip.classList.toggle('active', parseInt(chip.dataset.time, 10) === this.drawTime);
+        });
+
+        if (this.settingsRoundsDisplay) this.settingsRoundsDisplay.textContent = `${this.totalRounds} Rounds`;
+        this.modalRoundsChips.forEach(chip => {
+            chip.classList.toggle('active', parseInt(chip.dataset.rounds, 10) === this.totalRounds);
+        });
+
+        this.settingsModal.classList.remove('hidden');
+    }
+
     handleGameState(stateData) {
         this.gameState = stateData.state;
         this.currentRound = stateData.round || 1;
         this.totalRounds = stateData.totalRounds || 3;
+        this.drawTime = stateData.drawTime || this.drawTime || 60;
         this.drawerId = stateData.drawerId;
         this.drawerName = stateData.drawerName || '';
         this.wordClue = stateData.wordClue || '';
@@ -114,7 +198,7 @@ class GameClient {
         // 1. Update Top Bar
         if (this.roundDisplay) {
             if (this.gameState === 'LOBBY') {
-                this.roundDisplay.textContent = 'Lobby (Free Draw)';
+                this.roundDisplay.textContent = `Lobby (${this.drawTime}s / ${this.totalRounds} Rnds)`;
             } else if (this.gameState === 'GAME_OVER') {
                 this.roundDisplay.textContent = 'Game Over';
             } else {
@@ -125,14 +209,23 @@ class GameClient {
         this.updateTimer(this.timeLeft);
         this.updateWordClue(stateData.wordLength);
 
-        // 2. Start Game Button Visibility (Host only during LOBBY or GAME_OVER)
+        // 2. Start Game & Settings Button Visibility (Host only during LOBBY or GAME_OVER)
+        const isLobbyOrOver = (this.gameState === 'LOBBY' || this.gameState === 'GAME_OVER');
         if (this.startGameBtn) {
-            if (this.isHost && (this.gameState === 'LOBBY' || this.gameState === 'GAME_OVER')) {
+            if (this.isHost && isLobbyOrOver) {
                 this.startGameBtn.classList.remove('hidden');
                 this.startGameBtn.disabled = this.players.length < 1;
                 this.startGameBtn.title = 'Start the Scribble match!';
             } else {
                 this.startGameBtn.classList.add('hidden');
+            }
+        }
+
+        if (this.roomSettingsBtn) {
+            if (this.isHost && isLobbyOrOver) {
+                this.roomSettingsBtn.classList.remove('hidden');
+            } else {
+                this.roomSettingsBtn.classList.add('hidden');
             }
         }
 

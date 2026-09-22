@@ -36,15 +36,16 @@ class RoomManager {
     /**
      * Creates a new room with a unique code.
      * @param {string} customName
+     * @param {Object} options Game options { drawTime, totalRounds }
      * @returns {Promise<Object>} Created room metadata
      */
-    async createNewRoom(customName = 'Untitled Scribble') {
+    async createNewRoom(customName = 'Untitled Scribble', options = {}) {
         let code = generateRoomCode();
         while (this.rooms.has(code)) {
             code = generateRoomCode();
         }
 
-        const room = this.getOrCreateRoom(code, customName);
+        const room = this.getOrCreateRoom(code, customName, options);
 
         // Persist initial record in Supabase
         await saveRoomToDB(code, customName, room.state.getSnapshot());
@@ -52,6 +53,8 @@ class RoomManager {
         return {
             code: room.id,
             name: room.name,
+            drawTime: room.game.drawTime,
+            totalRounds: room.game.totalRounds,
             createdAt: room.createdAt
         };
     }
@@ -60,13 +63,14 @@ class RoomManager {
      * Gets or creates a room by ID/code.
      * @param {string} roomId
      * @param {string} name
+     * @param {Object} options Game options { drawTime, totalRounds }
      * @returns {Object} Room instance
      */
-    getOrCreateRoom(roomId, name = null) {
+    getOrCreateRoom(roomId, name = null, options = {}) {
         const id = this.normalizeCode(roomId);
 
         if (!this.rooms.has(id)) {
-            const game = new GameEngine();
+            const game = new GameEngine(options);
             const state = new DrawingState();
 
             const room = {

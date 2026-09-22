@@ -192,6 +192,10 @@ class WebSocketClient {
         this.send({ type: 'game:start' });
     }
 
+    updateSettings(settings) {
+        this.send({ type: 'game:settings', settings });
+    }
+
     chooseWord(word) {
         this.send({ type: 'game:choose_word', word });
     }

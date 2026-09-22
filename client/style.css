@@ -1300,3 +1300,453 @@ body {
         min-height: 150px;
     }
 }
+
+/* ==========================================================================
+   Login / Welcome Portal & Custom Timer Screen
+   ========================================================================== */
+
+.login-portal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.18), transparent 70%),
+                rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+}
+
+.login-portal-backdrop.hidden {
+    display: none !important;
+}
+
+.login-portal-card {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 28px 24px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.35),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    color: var(--text-primary);
+    max-height: 94vh;
+    overflow-y: auto;
+}
+
+.login-portal-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.portal-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.portal-logo-icon {
+    font-size: 2rem;
+    animation: bounce 2s infinite ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-6px) rotate(-8deg); }
+}
+
+.portal-logo h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.portal-tagline {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* Avatar & Nickname Profile */
+.login-profile-section {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+[data-theme="dark"] .login-profile-section {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.avatar-preview-box {
+    position: relative;
+    display: inline-block;
+}
+
+.login-avatar-circle {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 3px solid #ffffff;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease;
+}
+
+.login-avatar-circle:hover {
+    transform: scale(1.05) rotate(4deg);
+}
+
+.avatar-random-btn {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-surface);
+    border: 1.5px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.avatar-random-btn:hover {
+    transform: scale(1.15) rotate(15deg);
+    background: var(--bg-surface-hover);
+}
+
+.login-input-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.login-input-group label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+
+.login-input-group input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-input-group input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+/* Avatar Emoji Picker */
+.avatar-emoji-picker {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.avatar-chip {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.avatar-chip:hover {
+    transform: scale(1.12);
+    border-color: var(--accent-color);
+}
+
+.avatar-chip.active {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-color);
+    transform: scale(1.15);
+}
+
+/* Portal Tabs */
+.portal-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border-color);
+    padding: 4px;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    gap: 4px;
+}
+
+[data-theme="dark"] .portal-tabs {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.portal-tab-btn {
+    flex: 1;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.portal-tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.portal-tab-btn.active {
+    background: var(--bg-surface);
+    color: var(--accent-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.portal-tab-panel {
+    display: none;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.portal-tab-panel.active {
+    display: block;
+}
+
+/* Custom Settings Blocks */
+.portal-setting-block {
+    margin-bottom: 16px;
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+[data-theme="dark"] .portal-setting-block {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.setting-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.setting-title-row label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.setting-badge-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    background: rgba(59, 130, 246, 0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+/* Chips Grid */
+.timer-chips-grid, .rounds-chips-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.rounds-chips-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.timer-chip, .rounds-chip {
+    padding: 7px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+}
+
+.timer-chip span {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.timer-chip:hover, .rounds-chip:hover {
+    border-color: var(--accent-color);
+    background: var(--bg-surface-hover);
+}
+
+.timer-chip.active, .rounds-chip.active {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
+
+.timer-chip.active span {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Custom Range Slider */
+.custom-slider-row {
+    margin-top: 4px;
+}
+
+.portal-slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-color);
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.portal-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: transform 0.1s ease;
+}
+
+.portal-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Action CTA Buttons */
+.btn-portal-action {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-portal-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+}
+
+.btn-portal-action:active {
+    transform: translateY(0);
+}
+
+/* Invite Banner in Join Tab */
+.invite-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+}
+
+.banner-icon {
+    font-size: 1.5rem;
+}
+
+.banner-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.banner-sub {
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--success-color);
+}
+
+.banner-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.join-portal-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin: -4px 0 14px 0;
+    line-height: 1.4;
+}
+
+/* Settings Modal */
+.settings-card {
+    max-width: 440px;
+}
