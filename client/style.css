@@ -470,6 +470,8 @@ body {
 
 .sidebar-header {
     height: 40px;
+    min-height: 40px;
+    flex-shrink: 0;
     padding: 0 12px;
     display: flex;
     align-items: center;
@@ -951,6 +953,8 @@ body {
     top: 68px;
     right: 12px;
     bottom: 12px;
+    height: calc(100vh - 80px) !important;
+    max-height: calc(100vh - 80px) !important;
     width: 340px;
     max-width: calc(100vw - 24px);
     background: var(--bg-surface);
@@ -960,6 +964,7 @@ body {
     z-index: 90;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     animation: drawerSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     transition: transform 0.2s ease, opacity 0.2s ease;
 }
@@ -1003,7 +1008,8 @@ body {
 }
 
 .chat-messages-feed {
-    flex: 1;
+    flex: 1 1 0%;
+    min-height: 0;
     overflow-y: auto;
     padding: 8px;
     display: flex;
@@ -1096,6 +1102,7 @@ body {
 
 /* Quick Reactions Bar */
 .quick-reactions-bar {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 3px;
@@ -1128,6 +1135,7 @@ body {
 
 /* Chat Input */
 .chat-input-row {
+    flex-shrink: 0;
     display: flex;
     padding: 8px;
     gap: 6px;
@@ -2251,8 +2259,9 @@ body {
         bottom: 6px;
         width: auto;
         max-width: calc(100vw - 12px);
-        height: auto;
-        max-height: none;
+        height: calc(100dvh - 60px) !important;
+        max-height: calc(100dvh - 60px) !important;
+        overflow: hidden;
         z-index: 100;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
