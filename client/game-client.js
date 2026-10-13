@@ -42,18 +42,13 @@ class GameClient {
         this.playersList = document.getElementById('game-players-list');
         this.playerCountBadge = document.getElementById('game-player-count');
 
-        // Live Chat, Guessing & Drawer Controls
+        // Live Chat & Guessing Feed
         this.chatMessages = document.getElementById('chat-messages');
         this.chatForm = document.getElementById('chat-form');
         this.chatInput = document.getElementById('chat-input');
         this.chatSendBtn = document.getElementById('chat-send-btn');
         this.reactionChips = document.querySelectorAll('#quick-reactions-bar .reaction-chip');
-        this.chatToggleBtn = document.getElementById('chat-toggle-btn');
-        this.chatUnreadBadge = document.getElementById('chat-unread-badge');
-        this.closeChatBtn = document.getElementById('close-chat-btn');
-        this.chatDrawer = document.getElementById('game-chat-panel');
         this.floatingChatStream = document.getElementById('floating-chat-stream');
-        this.unreadChatCount = 0;
 
         // Floating In-Canvas Chat Bubble
         this.floatingChatBubble = document.getElementById('floating-chat-bubble');
@@ -165,20 +160,6 @@ class GameClient {
                     this.client.sendChat(text);
                     this.chatInput.value = '';
                 }
-            });
-        }
-
-        // Chat Drawer Toggle Button
-        if (this.chatToggleBtn) {
-            this.chatToggleBtn.addEventListener('click', () => {
-                this.toggleChatDrawer();
-            });
-        }
-
-        // Close Chat Drawer Button (✕)
-        if (this.closeChatBtn) {
-            this.closeChatBtn.addEventListener('click', () => {
-                this.closeChatDrawer();
             });
         }
 
@@ -588,37 +569,10 @@ class GameClient {
         }
     }
 
-    toggleChatDrawer() {
-        if (!this.chatDrawer) return;
-        const isCurrentlyHidden = this.chatDrawer.classList.contains('hidden');
-        if (isCurrentlyHidden) {
-            this.openChatDrawer();
-        } else {
-            this.closeChatDrawer();
-        }
-    }
-
-    openChatDrawer() {
-        if (!this.chatDrawer) return;
-        this.chatDrawer.classList.remove('hidden');
-        if (this.chatToggleBtn) this.chatToggleBtn.classList.add('active');
-        this.unreadChatCount = 0;
-        if (this.chatUnreadBadge) {
-            this.chatUnreadBadge.textContent = '0';
-            this.chatUnreadBadge.classList.add('hidden');
-        }
-        if (this.chatMessages) {
-            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-        }
+    focusChat() {
         if (this.chatInput) {
-            setTimeout(() => this.chatInput.focus(), 50);
+            this.chatInput.focus();
         }
-    }
-
-    closeChatDrawer() {
-        if (!this.chatDrawer) return;
-        this.chatDrawer.classList.add('hidden');
-        if (this.chatToggleBtn) this.chatToggleBtn.classList.remove('active');
     }
 
     addFloatingChatPopup(msg) {
@@ -713,16 +667,6 @@ class GameClient {
 
         this.chatMessages.appendChild(row);
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-
-        // If chat drawer is closed, increment unread badge
-        const isDrawerClosed = this.chatDrawer && this.chatDrawer.classList.contains('hidden');
-        if (isDrawerClosed) {
-            this.unreadChatCount = (this.unreadChatCount || 0) + 1;
-            if (this.chatUnreadBadge) {
-                this.chatUnreadBadge.textContent = this.unreadChatCount > 99 ? '99+' : this.unreadChatCount;
-                this.chatUnreadBadge.classList.remove('hidden');
-            }
-        }
 
         // Spawn transparent floating live popup stream over the canvas
         this.addFloatingChatPopup(msg);

@@ -439,7 +439,7 @@ body {
 }
 
 /* ========================================================
-   Main Game Arena (2-Column Layout: Scoreboard & Maximized Canvas)
+   Main Game Arena (3-Column Layout: Scoreboard, Canvas, Live Chat)
    ======================================================== */
 .game-arena {
     position: fixed;
@@ -448,7 +448,7 @@ body {
     left: 12px;
     right: 12px;
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 240px 1fr 310px;
     grid-template-rows: 1fr;
     height: calc(100vh - 80px);
     gap: 12px;
@@ -887,124 +887,11 @@ body {
 }
 
 /* ========================================================
-   Header Chat Toggle Button
-   ======================================================== */
-.btn-chat-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    border: 2px solid var(--border-color);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    font-family: 'Fredoka', 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    cursor: pointer;
-    box-shadow: var(--button-shadow);
-    position: relative;
-    transition: all 0.15s ease;
-}
-
-.btn-chat-toggle:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 0 var(--border-color);
-    background: var(--bg-surface-hover);
-}
-
-.btn-chat-toggle.active {
-    background: var(--accent-color);
-    color: #ffffff;
-    border-color: #005bb5;
-}
-
-.chat-unread-badge {
-    background: #ef130b;
-    color: #ffffff;
-    font-size: 10px;
-    font-weight: 800;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-    border-radius: 9px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
-    animation: chatBadgePulse 1.5s infinite;
-}
-
-@keyframes chatBadgePulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-}
-
-/* ========================================================
-   Right Slide-In Drawer: Live Chat & Guesses
+   Right Sidebar: Live Chat & Guesses
    ======================================================== */
 .game-chat-panel {
     display: flex;
     flex-direction: column;
-}
-
-.chat-drawer {
-    position: fixed;
-    top: 68px;
-    right: 12px;
-    bottom: 12px;
-    height: calc(100vh - 80px) !important;
-    max-height: calc(100vh - 80px) !important;
-    width: 340px;
-    max-width: calc(100vw - 24px);
-    background: var(--bg-surface);
-    border: var(--panel-border);
-    border-radius: var(--radius-md);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-    z-index: 90;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    animation: drawerSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-    transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.chat-drawer.hidden {
-    display: none !important;
-}
-
-@keyframes drawerSlideIn {
-    0% {
-        opacity: 0;
-        transform: translateX(30px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.chat-close-btn {
-    width: 26px;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1.5px solid var(--border-subtle);
-    border-radius: 6px;
-    background: var(--bg-surface-alt);
-    color: var(--text-secondary);
-    font-size: 13px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.chat-close-btn:hover {
-    background: #ef130b;
-    color: #ffffff;
-    border-color: #b70d07;
-    transform: scale(1.08);
 }
 
 .chat-messages-feed {
@@ -2038,7 +1925,7 @@ body {
    ======================================================== */
 @media (max-width: 960px) {
     .game-arena {
-        grid-template-columns: 200px 1fr;
+        grid-template-columns: 180px 1fr 240px;
         gap: 8px;
         top: 64px;
         left: 8px;
@@ -2250,64 +2137,60 @@ body {
         padding: 4px 10px;
     }
 
-    /* Overlay Chat Drawer on Mobile */
-    .chat-drawer {
-        position: fixed;
-        top: 54px;
-        left: 6px;
-        right: 6px;
-        bottom: 6px;
-        width: auto;
-        max-width: calc(100vw - 12px);
-        height: calc(100dvh - 60px) !important;
-        max-height: calc(100dvh - 60px) !important;
-        overflow: hidden;
-        z-index: 100;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    }
-
-    .chat-drawer .sidebar-header {
+    /* Chat Panel on Phone */
+    .game-chat-panel {
+        height: 125px;
+        min-height: 110px;
+        max-height: 140px;
+        flex-shrink: 0;
         display: flex;
-        height: 36px;
-        min-height: 36px;
-        padding: 0 8px;
-        align-items: center;
-        justify-content: space-between;
+        flex-direction: column;
+        border-radius: var(--radius-sm);
+        padding: 0;
+        overflow: hidden;
     }
 
-    .chat-drawer .sidebar-title {
-        font-size: 13px;
+    .game-chat-panel .sidebar-header {
+        display: flex;
+        height: 20px;
+        min-height: 20px;
+        padding: 0 6px;
+        align-items: center;
+    }
+
+    .game-chat-panel .sidebar-title {
+        font-size: 11px;
     }
 
     .chat-messages-feed {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
-        padding: 6px 8px;
-        gap: 3px;
-        font-size: 12px;
+        padding: 3px 5px;
+        gap: 2px;
+        font-size: 11.5px;
     }
 
     .chat-input-row {
-        height: 42px;
-        min-height: 42px;
-        padding: 4px 6px;
-        gap: 4px;
+        height: 36px;
+        min-height: 36px;
+        padding: 2px 4px;
+        gap: 3px;
         align-items: center;
     }
 
     .chat-input {
-        height: 32px;
-        min-height: 32px;
-        padding: 4px 10px;
-        font-size: 14px;
+        height: 28px;
+        min-height: 28px;
+        padding: 3px 8px;
+        font-size: 13px;
     }
 
     .chat-send-btn {
-        padding: 0 14px;
-        font-size: 13px;
-        height: 32px;
-        min-height: 32px;
+        padding: 0 12px;
+        font-size: 12px;
+        height: 28px;
+        min-height: 28px;
     }
 }
 

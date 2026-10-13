@@ -67,12 +67,6 @@
                 ▶ Start Game
             </button>
 
-            <!-- Chat Drawer Toggle Button -->
-            <button id="chat-toggle-btn" class="btn-chat-toggle" title="Toggle Live Chat & Guesses">
-                💬 <span class="btn-text">Chat</span>
-                <span id="chat-unread-badge" class="chat-unread-badge hidden">0</span>
-            </button>
-
             <!-- Theme Switcher -->
             <div class="theme-dropdown-container">
                 <button id="theme-btn" class="theme-btn" title="Change Theme">
@@ -113,7 +107,7 @@
         </div>
     </header>
 
-    <!-- Main Game Arena Layout (Left: Scoreboard | Center: Full-Width Canvas | Drawer: Chat) -->
+    <!-- Main Game Arena Layout (Left: Scoreboard | Center: Canvas | Right: Live Chat) -->
     <div class="game-arena">
         <!-- Left Sidebar: Scoreboard -->
         <aside class="game-sidebar game-scoreboard">
@@ -322,11 +316,10 @@
             </nav>
         </section>
 
-        <!-- Toggleable Slide-In Drawer: Live Chat & Guessing Feed -->
-        <aside id="game-chat-panel" class="game-sidebar game-chat-panel chat-drawer hidden">
+        <!-- Right Sidebar: Live Chat & Guessing Feed -->
+        <aside id="game-chat-panel" class="game-sidebar game-chat-panel">
             <div class="sidebar-header">
                 <span class="sidebar-title">💬 Live Chat & Guesses</span>
-                <button type="button" id="close-chat-btn" class="chat-close-btn" title="Close Chat (✕)">✕</button>
             </div>
             <div id="chat-messages" class="chat-messages-feed">
                 <div class="chat-msg msg-system">

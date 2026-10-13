@@ -868,12 +868,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (e.key === 'Enter' || e.key === '/') {
             e.preventDefault();
-            gameClient.openChatDrawer();
+            gameClient.focusChat();
             return;
         }
 
         if (e.key === 'Escape') {
-            gameClient.closeChatDrawer();
+            document.activeElement?.blur();
             return;
         }
 
